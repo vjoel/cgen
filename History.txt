@@ -1,0 +1,193 @@
+cgen 0.15
+
+  - Reinstated "extern" for extern prototypes.
+
+  - CShadow.shadow_attr returns list of handles to the r/w funcs
+
+  - CGen does 'make clean' if extconf.rb changes
+  
+  - #extconf yields line array
+  
+  - Attributes remember their owner_class.
+
+cgen 0.14
+
+  - Fixed to work with the YAML changes in ruby 1.8.4.
+
+cgen 0.13
+
+  - InitAccumulators were writing code to execute every time, rather
+    than just the first time. Fixed the bug.
+
+  - #declare_struct may be passed attributes, such as
+    "__attribute__((__packed__))"
+
+  - Fixed a bug caused by having more than one ruby interpreter installed.
+
+  - MSVC compatibility fixes.
+
+cgen 0.12
+
+  - CShadow.define_c_function for convenience.
+
+  - Improved sorting of component classes to reduce nondeterminism in code
+    generation, and to thereby reduce time to rebuild.
+
+  - Reorgnized CShadow base classes so that methods are provided by
+    extending with a module, CShadowClassMethods, instead of being
+    defined individually in each base class. This means that they can be
+    overridden and called with super. It's also cleaner and probably
+    faster.
+
+  - Included examples/yaml.rb, which was mistakenly left out of 0.11
+
+  - CShadow#inspect added. Shows both shadow attrs and instance vars.
+
+cgen 0.11
+
+  - CShadow classes are YAML friendly--see docs on cshadow and
+    examples/yaml.rb.
+
+  - Library#literal_symbol to streamline use of rb_hash_aref etc.
+
+  - Improved granularity for efficient separate compilation.
+
+  - Improved indentation in CFunctions.
+  
+  - CShadow: added a new statement accumulators to _dump_data_method
+    and  _load_data_method, called 'pre_code' and 'post_code',
+    replacing 'extra_code'.
+  
+  - Library#extconf should now return a string or array of strings,
+    which will be used as the contents of extconf.rb.
+
+cgen 0.10
+
+  - For versions of ruby 1.7.3 and 1.8 after 20Dec2002, we use
+    rb_define_alloc_func() instead of defining an "allocate" class method,
+    which would cause a warning.
+  
+  - Tested with MinGW/MSYS on Windows.
+  
+  - Deprecated methods (define_method and define_class_method) removed. See
+    notes for 0.9, below.
+
+cgen 0.9 [Never released]
+  
+  - Now uses standard install.rb.
+  
+  - Updated to ruby-1.7.3, 2002-10-30. (CShadow no longer uses class vars,
+    since their semantics have changed. It uses class instance vars instead.)
+  
+  - Tested with ruby-1.6.7 and ruby-1.7.3 (no patch needed for either).
+    Patch for marshal.c in ruby-1.6.6 is still included.
+  
+  - Tests now use Test::Unit.
+  
+  - [INTERFACE CHANGE] Library#define_method and the define_method class
+    methods in shadow classes are now deprecated. They work correctly but issue
+    a warning. They will be removed in future releases. Use #define_c_method
+    instead. This change is necessary because ruby-1.7 already has
+    Module.define_method. For consistency, this name change propagates to other
+    define methods:
+
+      define                    --> define_c_function
+      define_method             --> define_c_method
+      define_module_function    --> define_c_module_function
+      define_global_function    --> define_c_global_function
+      define_singleton_method   --> define_c_singleton_method
+
+cgen 0.8
+  - Minor fix to install.rb for compatibility with ruby 1.7.
+  - CGenerator::Library's purge_source_dir attribute now applies to .o files
+    as well as .c and .h.
+  - Shadow attributes can now be nonpersistent, using the :nonpersistent flag
+    in shadow_attr_accessor declarations. This reduces library size as well
+    as the size of the persistant image.
+  - CShadow: added a new statement accumulator to _dump_data_method and 
+    _load_data_method, called 'extra_code', which can be used to pre- (in
+    the case of dump) or post- (in the case of load) process the object. For
+    instance, additonal (nonpersistent) resources may need to be created or
+    initialized based on the loaded attr values.
+  - [Interface change] Removed the before_commit and after_commit methods from
+    CShadow and added more general methods to CGen::Library, to which CShadow
+    delegates. See the docs in cshadow.rb.
+
+cgen 0.7
+  - Added makedepend step to compilation so that the resulting library
+    reflects changes in headers. Library#makedepend can be overridden.
+  - Added CommentAccumulator, and gave each CFile a CommentAccumulator
+    called 'preamble' that comes before the include accumulator.
+  - Factored Library#write into #write and #update_file to give finer grained
+    control over checking whether a file needs updating.
+  - Added the purge_source_dir attribute of a library to optionally delete
+    or rename any source files that are not part of the current generation.
+  - Added show_times method (controlled by @@show_times) to print timing
+    information for the steps of the commit process.
+
+cgen 0.6
+  - Fixed a bug in CShadow which caused attr initializers not to be
+    inherited by the 'new' method of a subclass. Fixed similar bugs
+    with attr dump and load code. Added tests for these.
+  - Added optional subclass arg to define_method, define_singleton_method,
+    etc. The subclass arg allows the generated template to belong to a
+    subclass of the function template it would normally belong to.
+  - IntAttribute, LongAttribute: Use INT2NUM rather than INT2FIX to handle
+    numbers on the order of 2**30 (n<=2**29 was ok before, n>=2**31 is too
+    large for native longs, and raises an exception). Added tests for this.
+
+cgen 0.5
+  - Added before_commit and after_commit hooks for CShadow classes.
+  - Added LongAttribute.
+  - The protected and private declarations work on shadow attrs (in
+    the command form "protected :x", but not in the block form
+    "protected; shadow_attr_reader :x ...").
+  - declare_struct now uses declare, rather than a separate accumulator,
+    so that the order of declarations in a file is preserved.
+
+cgen 0.4
+  - With a patch to marshal.c in the ruby source, CShadow now handles
+    marshalling of shadow objects. See attribute.rb and marshal.patch.
+  - Tests added to attribute.rb for marshalling.
+  - CGenerator::Structure now allows recursive structs, so this works:
+      class Foo; include CShadow; shadow_attr_accessor :foo => [Foo]
+    (It always worked without the [], but that's another beast.)
+
+cgen 0.3
+  - Shadow structures: C structs painlessly attached to Ruby objects.
+    - Extensible architecture for shadow attributes
+    - Basic attributes for int, double, char*, Ruby object, etc.
+    - Inheritance of attributes.
+    - See docs in cshadow.html and attribute.html.
+  - Structure "inheritance":
+      a_struct.inherit another_struct.declare!
+  - Libraries are now inspectible, with hierarchical display of nested
+    templates and accumulators.
+  - Optional type checking for c_array_args.
+  - It's now easy to send definitions to other .c files besides the
+    main one for the library. See documentation for "add_file" and the
+    example in cgen.rb. CShadow takes advantage of this feature.
+  - Finer granularity in cgen's make process: write, mkmf, and make are
+    separate; mkmf still calls Library#extconf. You can pass arguments
+    to #make that the make program understands, such as 'distclean'.
+  - Cgen has now improved from alpha to beta quality code. Testing is
+    fairly thorough, especially in cshadow.rb and attribute.rb, and
+    documentation covers all public methods and many internal methods.
+  - Updated to work with Ruby 1.6.6.
+  - Now installs all four library files into cgen/ dir (the location of
+    this dir is controllable with the -d arg to install.rb.)
+
+cgen 0.2
+  - Nice syntax for required, optional, rest, and block arguments, using
+    rb_scan_args. Performs default initialization for optional arguments.
+    See new code in sample.rb.
+  - Methods and other RubyFunctions return nil by default.
+  - Runs mkmf.rb in a forked process, because:
+    1. mkmf uses global scope |:(
+    2. might need to run mkmf twice in one session
+    3. this puts the mkmf log file in the lib dir, not the main dir.
+  - The cwd when the extension is 'require'-d is now the same as the main dir.
+  - Fixed bug with #c_array_args in the RubyFunction classes.
+
+cgen 0.1
+  - First public release. Alpha, but basic functionality seems to work.
