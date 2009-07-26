@@ -1,3 +1,9 @@
+cgen 0.16.0
+
+  - Moved to Mr. Bones, git, gems, rubyforge.
+  
+  - API doc reformatted from rd2 to rdoc.
+
 cgen 0.15
 
   - Reinstated "extern" for extern prototypes.

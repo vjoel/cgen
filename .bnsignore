@@ -16,3 +16,8 @@ doc
 pkg
 *.bck
 misc
+junk
+tmp
+*/tmp
+*/junk
+s
