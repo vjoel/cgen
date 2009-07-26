@@ -1,0 +1,38 @@
+$ ruby -r test_lib.so -e 1
+./test_lib.so: [BUG] Segmentation fault
+ruby 1.7.3 (2002-12-20) [i686-linux]
+zsh: abort      ruby -r test_lib.so -e 1
+
+$ gdb ruby
+GNU gdb 5.3-22mdk (Mandrake Linux)
+Copyright 2002 Free Software Foundation, Inc.
+GDB is free software, covered by the GNU General Public License, and you are
+welcome to change it and/or distribute copies of it under certain conditions.
+Type "show copying" to see the conditions.
+There is absolutely no warranty for GDB.  Type "show warranty" for details.
+This GDB was configured as "i586-mandrake-linux-gnu"...
+(gdb) r -r test_lib.so -e 1
+Starting program: /home/local/bin/ruby -r test_lib.so -e 1
+
+Program received signal SIGSEGV, Segmentation fault.
+strcmp (p1=0x80028145 <Address 0x80028145 out of bounds>,
+    p2=0x4001419e "__gmon_start__") at ../sysdeps/generic/strcmp.c:38
+38      ../sysdeps/generic/strcmp.c: No such file or directory.
+        in ../sysdeps/generic/strcmp.c
+(gdb) bt
+#0  strcmp (p1=0x80028145 <Address 0x80028145 out of bounds>,
+    p2=0x4001419e "__gmon_start__") at ../sysdeps/generic/strcmp.c:38
+#1  0x400078fa in do_lookup (undef_name=0x4001419e "__gmon_start__",
+    hash=256704639, ref=0x40014134, result=0xbfffeb40, scope=0x80028145, i=0,
+    flags=1, skip=0x0, type_class=0) at do-lookup.h:99
+#2  0x400067b6 in _dl_lookup_symbol (undef_name=0x4001419e "__gmon_start__",
+    undef_map=0x81152a8, ref=0xbfffebc0, symbol_scope=0x8115444, type_class=0,
+    flags=1) at dl-lookup.c:251
+Die: DW_TAG_formal_parameter (abbrev = 50, offset = 99530)
+        has children: FALSE
+        attributes:
+                DW_AT_name (DW_FORM_string) string: "sym"
+                DW_AT_decl_file (DW_FORM_data1) constant: 32
+                DW_AT_decl_line (DW_FORM_data2) constant: 508
+                DW_AT_type (DW_FORM_ref4) constant: 8703
+Dwarf Error: Cannot find type of die.

@@ -1,0 +1,47 @@
+
+From the intro...
+
+  The (({CGenerator})) module is a framework for dynamically
+  generating C extensions. It is a bit like Perl's (({inline})) but
+  intended for a different purpose: managing incremental, structured
+  additions to C source files, and compiling the code and loading the
+  library just in time for execution. Whereas (({inline})) helps you
+  write a C extension, (({CGenerator})) helps you write a Ruby
+  program that generates C extensions. To put it another way, this is
+  a Ruby interface to the Ruby C API. 
+  
+  The original use of (({CGenerator})) was as the back end of a
+  compiler for mathematical expressions in C-like syntax involving
+  limited Ruby subexpressions. In that case, (({CGenerator})) allowed
+  the compiler to think about the syntax and semantics of the input
+  expressions without having to worry about the high-level structure
+  of the generated .c and .h files.
+  
+  One potential use is quick-turnaround development and testing of C
+  code, possibly using Ruby as a driver environment; the library
+  under construction needn't be Ruby-specific. If SWIG didn't support
+  Ruby, this framework could be the starting point for a program that
+  generates wrapper code for existing libraries. Finally, a Ruby
+  package that includes C extensions could benefit from being able to
+  use Ruby code to dynamically specify the contents and control the
+  build process during installation.
+  
+  The (({CGenerator})) framework consists of two base classes,
+  (({Accumulator})) and (({Template})). Think of accumulators as
+  blanks in a form and templates as the form around the blanks,
+  except that accumulators and templates can nest within each other.
+  The base classes have subclasses which hierarchically decompose the
+  information managed by the framework. This hierarchy is achieved by
+  inheritance along the parent attribute, which is secondary to
+  subclass inheritance.
+
+  ...
+
+License is the same as Ruby's, of course. It's in RAA, under
+Library/devel. Or go directly to
+  http://redshift.sourceforge.net/cgen/
+and do not collect $200. (Weak joke. It's late in CA.)
+
+The doc is a bit rambly and sketchy. It needs editing. For now, just skip to the Example section if you want to see what it does. Then look at the Usage section. Leave the general discussion for when you're really, really trying to avoid work ;)
+
+The code is still forming, or maybe I should say coagulating. I'm looking forward to your suggestions...

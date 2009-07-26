@@ -1,0 +1,552 @@
+#!/usr/bin/env ruby
+
+=begin
+
+=class (({CShadow::Attribute}))
+
+This is the base class for all plug-in attribute classes used with the (({CShadow})) module. Each subclass provides information which CShadow uses to manage some of the housekeeping for the attribute:
+
+* declaration of the attribute in the shadow struct,
+* accessor code (which (({CShadow})) wraps in methods),
+* type conversion for the write accessor,
+* type checking for the write accessor,
+* the 'mark' function, if the attribute refers to Ruby objects,
+* the 'free' function, if the attribute refers to C data,
+* serialization methods for the attribute. (Requires patch to Ruby)
+
+The subclass hierarchy has two branches: (({ObjectAttribute})) and (({CNativeAttribute})). The former is a reference to a Ruby object (in other words, a struct member of type (({VALUE})). The latter has subclasses for various C data types, such as (({double})) and (({char *})).
+
+==Object attributes
+
+There are two kinds of object attributes. Both refer to Ruby objects and can be typed or untyped. The second is a slightly optimized variation that is restricted to references to other shadow objects.
+
+===class (({CShadow::ObjectAttribute}))
+
+The syntax for adding an object attribute to a class is simple. The following code adds two object attributes, one untyped and one typed:
+
+  class A
+    include CShadow
+    shadow_attr_accessor :obj => Object, :sym => Symbol
+  end
+
+(See ((<cshadow.html>)) for variations on (({shadow_attr_accessor})).)
+
+In the first case, assignment to (({obj})) performs no type checking. In the latter case, assignment to (({sym})) raises a (({TypeError})) unless the object assigned is a (({Symbol})) or nil. Type checking always allows (({nil})) in addition to the specified type. In each case, the attribute is initialized to (({nil})). Note that (({nil})) is internally stored as 0, rather than as (({Qnil})).
+
+The referenced Ruby object is marked to protect it from the garbage collector.
+
+===class (({CShadow::ShadowAttribute}))
+
+(({ShadowAttribute})) is a restricted variant of (({ObjectAttribute})) in which the object referred to must belong to a class that includes (({CShadow})). The actual pointer is to the shadow struct itself, rather than a (({VALUE})). This difference is transparent to Ruby code. The syntax for this variant differs only in the use of brackets around the type. For example, using the class (({A})) defined above:
+  
+  class B
+    include CShadow
+    shadow_attr_accessor :a => [A]
+    
+    def initialize
+      self.a = A.new
+      a.sym = :something
+    end
+  end
+
+Note that a shadow struct always has a (({self})) pointer, so a (({ShadowAttribute})) contains essentially the same information as an (({ObjectAttribute})). It is included for situation in which a direct reference to the shadow struct is desirable. Note that only ObjectAttributes can refer to general Ruby objects which may or may not include the (({CShadow})) module.
+
+The accessors work just as with ObjectAttribute, with type checking performed by the writer. From Ruby, these two kinds of attributes are indistinguishable in all respects except their declaration syntax.
+
+The reference to the Ruby object is marked to protect it from the garbage collector.
+
+==C native attributes
+
+(({CNativeAttribute})) and its subclasses handle all but the two special cases described above. The general form for declarations of such attributes is:
+
+  shadow_attr_accessor ruby_var => c_declaration
+  
+where (({ruby_var})) is the name (symbol or string) which will access the data from Ruby, and (({c_declaration})) is the string used to declare the data. For example:
+
+  shadow_attr_accessor :x => "double x", :y => "int yyy"
+
+Note that the symbol and C identifier need not be the same.
+
+Native attributes fall into two categories: those that embed data within the struct, and those that point to a separately allocated block. Embedded attributes are limited in that they are of fixed size. Pointer attributes do not have this limitation. But programmers should be wary of treating them as separate objects: the lifespan of the referenced data block is the same as the lifespan of the Ruby object. If the Ruby object and its shadow are garbage collected while the data is in use, the data will be freed and no longer valid. 
+
+A good practice is to use "copy" semantics, so that there can be no other references to the data. See (({CharPointerAttribute})), for example. Reading or writing to such an attribute has copy semantics, in the following sense. On assignment, the Ruby string argument is copied into an allocated block; later references to this attribute generate a new Ruby string which is a copy of that array of char.
+
+Some (({CNativeAttribute})) examples are included for int, double, double *, char *, etc.
+
+Uninitialized numeric members are 0. Accessors for unitialized strings return nil.
+
+==Adding new attribute classes
+
+Each attribute class must define a class method called 'match' which returns true if the right hand side of the ':name => ...' expression is recognized as defining an attribute of the class. The class should have an initialize method to supply custom code for readers, writers, type checking, and memory management. The easiest way is to follow the examples. For many purposes, most of the work can be done by subclassing existing classes.
+
+==To do:
+
+* Consider changing '[Foo]' to 'shadow(Foo)' and using [Foo, Bar, Baz], [Foo]*20, and [Foo .. Foo] to signify structs, fixed-length arrays, and var-length arrays of (VALUE *) ?
+
+* More attribute classes.
+
+* Make classes more generic, so that there aren't so many classes. (Factory classes, like ArrayAttribute(PointerAttribute(:char)) ?)
+
+* Support for #freeze, #taint, etc.
+
+* Serialization methods and tests.
+
+==Limitations:
+
+* IntAttribute: No attempt to handle Bignums.
+
+=end
+
+module CShadow
+
+  AttributeTypes = []
+
+  class Attribute
+
+    def Attribute.inherited subclass
+      AttributeTypes << subclass
+    end
+    
+    def Attribute.match decl
+      false
+    end
+    
+    attr_reader :var, :cvar, :cdecl,
+                :reader, :check, :writer,
+                :mark, :free, :dump, :load
+    
+    def initialize var, match
+      @var, @match = var, match
+    end
+    
+    def inspect
+      %{<#{type} #{@cvar} => #{@cdecl.inspect}>}
+    end
+  end
+  
+  class ObjectAttribute < Attribute
+  
+    def ObjectAttribute.match decl
+      decl if decl.is_a? Class
+    end
+    
+    def initialize(*args)
+      super
+      @class = @match
+      
+      @cvar = @var
+      @cdecl = "VALUE #{@cvar}; // #{@class}"
+      
+      @reader = "result = shadow->#{@cvar} ? shadow->#{@cvar} : Qnil"
+      @writer = "shadow->#{@cvar} = arg"
+      @check = @class unless @class == Object
+      @mark = "rb_gc_mark(shadow->#{@cvar})"
+      
+      @dump = "rb_ary_push(result, shadow->#{@cvar})"
+      @load = "shadow->#{@cvar} = rb_ary_shift(from_array)"
+    end
+    
+    def inspect
+      %{<#{type} #{@cvar} => #{@class.inspect}>}
+    end
+  
+  end
+  
+  class ShadowAttribute < Attribute ### rename ShadowObjectAttribute ???
+
+    def ShadowAttribute.match decl
+      decl[0] if decl.is_a? Array and decl.size == 1 and decl[0].is_a? Class
+    end
+    
+    def initialize(*args)
+      super
+      @class = @match
+      
+      @cvar = @var
+      begin
+        @cdecl = "#{@class.shadow_struct_name} *#{@cvar}"
+      rescue NameError => e 
+        if /undefined method.*shadow_struct_name/ =~ e
+          raise ScriptError, "Class #{@class} doesn't include CShadow."
+        end
+      end
+      
+      @reader = "result = shadow->#{@cvar} ? shadow->#{@cvar}->self : Qnil"
+      @writer = %{
+        if (arg != Qnil)
+          Data_Get_Struct(arg, #{@class.shadow_struct_name}, shadow->#{@cvar})
+        else
+          shadow->#{@cvar} = 0;
+      }
+      @check = @class unless @class == Object
+      @mark = %{\
+        if (shadow->#{@cvar})
+          rb_gc_mark(shadow->#{@cvar}->self);\
+      }
+      
+#      @dump = "rb_ary_push(result, shadow->#{@cvar}->self)"
+#      @load = "shadow->#{@cvar} = rb_ary_shift(from_array)"
+#      @load = %{
+#        {
+#          VALUE arg = rb_ary_shift(from_array);
+#          
+#          if (arg != Qnil)
+#            Data_Get_Struct(arg, #{@class.shadow_struct_name}, shadow->#{@cvar})
+#          else
+#            shadow->#{@cvar} = 0;
+#        }
+#      }
+    end
+    
+    def inspect
+      %{<#{type} #{@cvar} => [#{@class.inspect}]>}
+    end
+  end
+
+  class CNativeAttribute < Attribute
+    
+    attr_reader :ctype
+  
+    def CNativeAttribute.match decl
+      if decl.is_a? String and @pattern and @pattern =~ decl
+        Regexp.last_match
+      else
+        false
+      end
+    end
+    
+    def initialize(*args)
+      super
+      @cdecl = @match[0]
+      @ctype = @match[1]
+      @cvar = @match[2]
+    end
+  
+  end
+  
+  class IntAttribute < CNativeAttribute
+    @pattern = /\A(int)\s+(\w+)\z/
+    def initialize(*args)
+      super
+      @reader = "result = INT2FIX(shadow->#{@cvar})"
+      @writer = "shadow->#{@cvar} = NUM2INT(arg)"   # type check and conversion
+      # 31 bit persistence problem
+    end
+  end
+  
+  class DoubleAttribute < CNativeAttribute
+    @pattern = /\A(double)\s+(\w+)\z/
+    def initialize(*args)
+      super
+      @reader = "result = rb_float_new(shadow->#{@cvar})"
+      @writer = "shadow->#{@cvar} = NUM2DBL(arg)"    # type check and conversion
+    end
+  end
+  
+  class PointerAttribute < CNativeAttribute
+    def initialize(*args)
+      super
+      @free = "free(shadow->#{@cvar})"
+    end
+  end
+  
+  class CharPointerAttribute < PointerAttribute
+    @pattern = /\A(char)\s*\*\s*(\w+)\z/
+    def initialize(*args)
+      super
+      @reader =
+        "result = shadow->#{@cvar} ? rb_str_new2(shadow->#{@cvar}) : Qnil"
+      @writer = %{
+        {
+          int len;
+          char *str;
+          
+          free(shadow->#{@cvar});
+
+          if (arg == Qnil)
+            shadow->#{@cvar} = 0;
+          else {
+            str = rb_str2cstr(arg, &len);
+            shadow->#{@cvar} = ALLOC_N(char, len + 1);
+
+            if (str)
+              memcpy(shadow->#{@cvar}, str, len);
+
+            shadow->#{@cvar}[len] = '\\0';
+          }
+        }
+      } # based on rb_str_new and rb_str2cstr
+    end
+  end
+  
+  # can be used for variable length arrays--see examples/matrix.rb.
+  class DoublePointerAttribute < PointerAttribute
+    @pattern = /\A(double)\s*\*\s*(\w+)\z/
+  end
+  
+end # module CShadow
+
+
+if $0 == __FILE__
+
+  $".push "cgen/attribute.rb"
+  require "cgen/cshadow"
+  
+  #
+  #  Tests in this file focus on the behavior of individual attributes:
+  #  accessors, initial values, type conversion and checking, 
+  #  garbage collection (mark and free functions), etc.
+  #
+
+  require 'runit/testcase'
+  require 'runit/cui/testrunner'
+  require 'runit/testsuite'
+  
+  class AttributeSample
+    include CShadow
+  end
+  
+  class AttributeTest < RUNIT::TestCase
+  end
+  
+  class ObjectAttributeTest < AttributeTest
+    class ObjectAttributeSample < AttributeSample
+      shadow_attr_accessor :x => Object, :y => String
+    end
+    
+    def test__initial
+      @oas = ObjectAttributeSample.new
+      assert_equal(nil, @oas.x)
+      assert_equal(nil, @oas.y)
+    end
+    
+    def test_accessor
+      @oas.x = lx = Object.new
+      @oas.y = ly = "A string"
+      assert_same(lx, @oas.x)
+      assert_same(ly, @oas.y)
+      
+      @oas.x = nil
+      @oas.y = nil
+      assert_equal(nil, @oas.x)
+      assert_equal(nil, @oas.y)
+    end
+    
+    def test_typecheck
+      assert_exception(TypeError) {
+        @oas.y = 5
+      }
+    end
+    
+    def make_thing c
+      @oas.x = c.new
+    end
+
+    def trash_thing
+      @oas.x = nil
+    end
+
+    def test_gc
+      c = Class.new
+
+      make_thing c
+      GC.start
+      assert_equal(1, ObjectSpace.each_object(c) {})
+      
+      trash_thing
+      GC.start
+      assert_equal(0, ObjectSpace.each_object(c) {})
+    end
+    
+    ## check that nil marshals
+  end
+  
+  class ShadowAttributeTest < AttributeTest
+    class ShadowAttributeSample < AttributeSample
+      shadow_attr_accessor :x => [ShadowAttributeSample]
+    end
+    
+    def test__initial
+      @sas = ShadowAttributeSample.new
+      assert_equal(nil, @sas.x)
+    end
+    
+    def test_accessor
+      @sas.x = lx = ObjectAttributeSample.new
+      assert_same(lx, @sas.x)
+      @sas.x = nil
+      assert_equal(nil, @sas.x)
+    end
+    
+    def test_typecheck
+      assert_exception(TypeError) {
+        @sas.x = 5
+      }
+    end
+    
+    def make_thing c
+      @sas.x = c.new
+    end
+
+    def trash_thing
+      @sas.x = nil
+    end
+
+    def test_gc
+      c = ObjectAttributeSample
+      
+      GC.start
+      count = ObjectSpace.each_object(c) {}
+      
+      make_thing c
+      GC.start
+      assert_equal(count + 1, ObjectSpace.each_object(c) {})
+      
+      trash_thing
+      GC.start
+      assert_equal(count, ObjectSpace.each_object(c) {})
+    end
+  end
+  
+  class IntAttributeTest < AttributeTest
+    class IntAttributeSample < AttributeSample
+      shadow_attr_accessor :x => "int x"
+    end
+    
+    def test__initial
+      @ias = IntAttributeSample.new
+      assert_equal(0, @ias.x)
+    end
+    
+    def test_accessor
+      @ias.x = 5
+      assert_equal(5, @ias.x)
+    end
+    
+    def test_conversion
+      @ias.x = 5.1
+      assert_equal(5, @ias.x)
+    end
+    
+    def test_typecheck
+      assert_exception(TypeError) {
+        @ias.x = "Foo"
+      }
+    end
+  end
+  
+  class DoubleAttributeTest < AttributeTest
+    class DoubleAttributeSample < AttributeSample
+      shadow_attr_accessor :x => "double x"
+    end
+    
+    def test__initial
+      @das = DoubleAttributeSample.new
+      assert_equal(0, @das.x)
+    end
+    
+    def test_accessor
+      @das.x = 5.1
+      assert_equal(5.1, @das.x)
+    end
+    
+    def test_conversion
+      @das.x = 5
+      assert_equal(5, @das.x)
+    end
+    
+    def test_typecheck
+      assert_exception(TypeError) {
+        @das.x = "Foo"
+      }
+    end
+  end    
+  
+  class CharPointerAttributeTest < AttributeTest
+    class CharPointerSample < AttributeSample
+      shadow_attr_accessor :x => "char *x"
+    end
+    
+    def test__initial
+      @das = CharPointerSample.new
+      assert_equal(nil, @das.x)
+    end
+    
+    def test_accessor
+      str = "foo"
+      @das.x = str
+      assert_equal("foo", @das.x)
+      assert(str.id != @das.x.id)
+      
+      @das.x = nil
+      assert_equal(nil, @das.x)
+    end
+    
+    def test_typecheck
+      assert_exception(TypeError) {
+        @das.x = 5
+      }
+    end
+  end
+  
+  # General test of marshaling shadow objects.
+  # Each attr test has its own marshal test, as well.
+  class MarshalSample < AttributeSample
+    shadow_attr_accessor :x => Object, :y => String
+    attr_accessor :t
+  end
+  
+  class MarshalTest < RUNIT::TestCase
+    def test_marshal
+      ms = MarshalSample.new
+      ms.x = ["a", :b]
+      ms.y = "fuzz"
+      ms.t = {3.79 => "zap"}
+      ms.instance_eval {@u = 4}
+      
+      str = Marshal.dump ms
+      copy = Marshal.load str
+      
+      assert_equal(ms.type, copy.type)
+      assert_equal(ms.x, copy.x)
+      assert_equal(ms.y, copy.y)
+      assert_equal(ms.t, copy.t)
+      assert_equal(ms.instance_eval {@u}, copy.instance_eval {@u})
+    end
+    
+    def test_link
+      ms1 = MarshalSample.new
+      ms2 = MarshalSample.new
+      ms3 = MarshalSample.new
+      
+      ms1.x = ms3
+      ms1.t = ms2
+      
+      ms2.x = ms3
+      ms3.x = ms1
+      
+      count = 0
+      str = Marshal.dump ms1
+      copy = Marshal.load str, proc { |x|
+        if x.type == MarshalSample then count += 1 end
+      }
+      
+      assert_same(copy.x, copy.t.x)
+      assert_same(copy.x.x, copy)
+      assert_equal(3, count)
+    end
+  end
+  
+  Dir.mkdir "tmp" rescue SystemCallError
+  Dir.chdir "tmp"
+  
+  AttributeSample.commit
+  
+  RUNIT::CUI::TestRunner.run(ObjectAttributeTest.suite)
+  RUNIT::CUI::TestRunner.run(ShadowAttributeTest.suite)
+  RUNIT::CUI::TestRunner.run(IntAttributeTest.suite)
+  RUNIT::CUI::TestRunner.run(DoubleAttributeTest.suite)
+  RUNIT::CUI::TestRunner.run(CharPointerAttributeTest.suite)
+  RUNIT::CUI::TestRunner.run(MarshalTest.suite)
+
+end

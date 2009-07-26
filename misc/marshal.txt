@@ -1,0 +1,49 @@
+This patch allows dump/load to work on T_DATA with ruby version < 1.6.6. There is no need for the patch on 1.6.7 or 1.7.
+
+[From the ruby-talk post]
+I don't think there's any *general* way to marshal objects that have a C struct attached to them (i.e., created with DATA_MAKE_STRUCT or DATA_WRAP_STRUCT) and which contain arbitrary data (including references to Ruby objects), so here's a patch that cleanly adds that functionality.
+
+This patch is conservative in the sense that it only affects execution paths that resulted in exceptions before. It should not break existing code or formatted data.
+
+
+USAGE
+=====
+
+The following methods should be implemented in a class used to wrap C data if some of that C data needs to be serialized:
+
+Instance methods:
+
+_dump_data
+  
+  Returns an Object that encapsulates the data stored in the struct.
+  
+_load_data Object
+
+  Called on the object after it is allocated, but before instance vars are restored. (Unlike the _load method used with Marshal, this is an instance method.) Used to populate the struct with data from the argument object.
+
+These two instance methods can be written in Ruby if there are accessor methods available for reading and writing all the persistent C data. (It may be advantageous to write them in C, though.)
+
+Class method:
+  
+_alloc
+
+  Invoke DATA_MAKE_STRUCT, and return the resulting object.
+
+
+Notes:
+
+(1) I originally thought of using just a string argument in place of the Object, for consistency with _dump/_load, but that made life hard within the _dump_data/_load_data implementation, and also it is impossible to connect to Marhsal's hash of objects that it has seen, so your object graph gets turned into a tree with duplicates.
+
+(2) There is no limit parameter to _dump_data because this gets applied automatically in the w_obejct call in the T_DATA case.
+
+(3) The reason I didn't just use _dump/_load or redefine Marshal.dump/load, is that my C data is very general. It may refer to other Ruby objects. To maintain referential integrity, I need to continue with the same Marshal.dump/load call without starting the process from scratch with a new arg->data hash.
+
+(4) The _dump_data/_load_data methods are called only in the case of a T_DATA object. They are used in conjuntion with w_object/r_object.
+
+(5) I have tested this code in my CGen/CShadow library to make sure that both Ruby attrs and C data are marshalled, and that referential integrity is preserved (including cycles).
+
+(6) I've also tested that the proc argument to Marshal.load is called. When this proc is called, instance vars are all nil, but that's the way it works in other cases now, anyway.
+
+<plug>
+This new functionality supports CGen/CShadow, which can now manage the marshalling of C attributes for you. I'll upload the latest version in a day or two.
+</plug>

@@ -1,0 +1,907 @@
+#!/usr/bin/env ruby
+
+=begin
+
+=module (({CShadow}))
+
+(({CShadow})) is a way of creating objects which transparently mix C data with Ruby data.
+
+The (({CShadow})) module is a mix-in which adds a C struct to objects which derive from the class which includes it. The data members of the C struct, called shadow attributes, may vary in subclasses of this base class. Shadow attrs can be added to any class inheriting from the base class, and they will propagate along the ordinary ruby inheritance hierarchy. (For now, shadow attributes cannot be defined in modules.)
+
+The (({CShadow})) module uses (({CGenerator}))'s structure templates to handle the code generation. (({CGenerator})) is also useful for inline C definitons of methods that operate on shadow attributes.
+
+(({CShadow})) cooperates with the (({CShadow::Attribute})) subclasses defined in ((<attribute.rb>)) to handle the mark and free functions, type checking and conversion, serialization, and so on. New attribute types can be added easily. 
+
+==Usage
+
+  class MyClass
+    include CShadow
+
+Include (({CShadow})) in the base class(es) that need to have shadow attributes. The base class is assigned a (({Library})) (see cgen.rb), which can be accessed using the base class's (({shadow_library})) method. Each subclass of the base class will be associated with a struct defined in this library's .h files.
+
+As usual, the (({initialize})) method of the class will be called when the object is created, and the arguments are whatever was passed to (({new})), including the block, if any. You can write your own (({initialize})) method to assign initial values to the shadow attrs. (Typically, shadow attrs are initialized by default to nil or 0. See ((<attribute.rb>)).)
+
+The file name of the library is the same as the name of the class which includes (({CShadow})), by default, and the library directory is generated in the current dir when (({commit})) is called. To change the name, or to use a different library:
+
+    shadow_library <Library, Class, or String>
+
+The argument can be another library (instance of (({CGenerator::Library}))), a class which includes (({CShadow})), in which case the library of the class is used, or a string, in which case a new library is created. Using this feature, several base classes (and their descendants) can be kept in the same library. It is not possible to split a tree (a base class which includes (({CShadow})) and its descendants) into more than one library.
+
+Shadow classes that are placed in the same library can still be put in separate source files, using (({shadow_library_file})):
+
+    shadow_library_file <CFile or String>
+
+This setting is inherited (and can be overridden) by subclasses of the current class. If a class calls both (({shadow_library})) and (({shadow_library_file})) then they must be called in that order. Note that anything defined before the (({shadow_library_file})) statement will not be placed in the specifed file.
+
+The include and source file for the current class can be accessed with (({shadow_library_include_file})) and (({shadow_library_source_file})). This is not required for normal use.
+
+Behavior at commit time can be controlled by defining (({before_commit})) and (({after_commit})) class methods. These methods are called immediately before and after the actual commit, which allows, for example, removing instances that would otherwise cause an exception, or creating the instance of a singleton class.
+
+===Struct members
+
+All shadow structs have a (({self})) member of type (({VALUE})) which points to the Ruby object.
+
+The subclass struct inherits members of the base class struct.
+
+There are two types of shadow attributes:
+
+(1) C data: (({:d => "double d", :x => "char *foo"}))
+(2) Ruby value: (({:str => String, :obj => Object}))
+
+In addition to shadow attributes, you can declare other struct members using
+
+  shadow_struct.declare ...
+
+as in cgen.
+
+===Accessors
+
+---CShadow#shadow_attr :var => decl, ...
+
+Adds the specified declarations to the shadow struct of the current class without defining any accessors. The data can be accessed only in C code.
+
+---CShadow#shadow_attr_reader :var => decl, ...
+---CShadow#shadow_attr_writer :var => decl, ...
+---CShadow#shadow_attr_accessor :var => decl, ...
+
+Like (({CShadow#shadow_attr})), but adds a reader and/or writer named (({var})) or (({var=})).
+
+Each (({:var => decl})) pair generates one C struct member ((({:x => "int x,y"})) will generate an exception).
+
+The same symbol :var cannot be used in both a (({shadow_attr_*})) definition and an ordinary (({attr_*})) definition. (You can always get around this by manually defining accessor methods.)
+
+===Type checking and conversion
+
+In case (1), assignments to int and double struct members are done with (({NUM2INT})) and (({NUM2DBL})), which convert between numeric types, but raise exceptions for unconvertible types. The (({char *})) case uses (({rb_str2cstr})), which behaves analogously.
+
+In case (2) the assigned value must always be a descendant of the specified type, except that (({nil})) is always accepted. The purpose of specifying a class (should also allow type predicate!) is to allow C code to assume that certain struct members are present in the shadow struct, and so it can be safely casted to the "ancestor" struct.
+
+===Adding methods
+
+CGenerator provides a general interface to the Ruby-C api. However, for simplicity, CShadow provides two methods for defining methods and class methods
+
+---CShadow#define_method name, subclass = Method, &block
+---CShadow#define_class_method name, subclass = SingletonMethod, &block
+
+The block is evaluated in a context that allows commands for listing arguments, delcarations, C body code, etc. See cgenerator.rb for details. See examples in examples/matrix.rb and examples/complex.rb. The (({subclass})) argument is optional and allows the template to belong to a subclass of the function template it would normally belong to.
+
+In the case of (({define_method})), a pointer to the object's shadow struct is available in the C variable (({shadow})).
+
+===Introspection
+
+Each class which includes the CShadow module has the following methods to iterate over its shadow attributes.
+
+---sub_class#each_shadow_attr(&bl)
+
+Note that the shadow attributes dynamically include inherited ones. (Dynamically in the sense that subsequent changes to superclasses are automatically reflected.) The order is from root to leaf of the inheritance chain, and within each class in order of definition. (TEST THIS)
+
+---sub_class#shadow_attrs
+
+Returns a proxy Enumerable object referring to the same attributes as (({#each_shadow_attr})). For example:
+
+  sub_class.shadow_attrs.collect { |attr| attr.var }
+
+returns an array of variable names for all attributes of the class.
+
+===Memory management
+
+Each type of attribute is responsible for managing any required marking of referenced Ruby objects or freeing of allocated bocks of memory. See ((<attribute.rb>)) for details.
+
+===C attribute plug-ins
+
+CShadow's (({shadow_attr})) methods check for one (no more, no less) matching attribute class. The details of the matching depend on the attribute class. See ((<attribute.rb>)) for details. Additional attribute classes can easily be added simply by subclassing (({CShadow::Attribute})).
+
+===Namespace usage
+
+prefix every attribute, method, constant name with "cshadow_"?
+
+===Common problems and their solutions
+
+Do you get a NameError because accessor methods are not defined? Make sure you commit your class.
+
+You assign to an attribute but it doesn't change? Ruby assumes that, in an assignment like "x=1", the left hand side is a local variable. For all writer methods, whether Ruby or C attributes, you need to do "self.x=1".
+
+==Notes
+
+* As with most modules, including CShadow more than once has no effect. However, CShadow cannot curently be included in another module.
+
+==Limitations:
+
+* Hash args are ordered unpredictably, so if struct member order is significant (for example, because you want to pass the struct to C code that expects it that way), use a separate declare statement for each member. Also, take note of the self pointer at the beginning of the struct.
+
+* Creating a ruby+shadow object has a bit more time/space overhead than just a C object, so CShadow may not be the best mechansism for managing heap allocated data (for example, if you want lots of 2-element arrays). Also, CShadow objects are fixed in size (though their members can point to other structures).
+
+* CShadow attributes are, of course, not dynamic. They are fixed at the time of (({commit})). Otherwise, they behave essentially like Ruby attributes, except that they can be accessed only with methods or from C code; they cannot be accessed with the @ notation. Of course, the reader and writer for a shadow attribute can be flagged as protected or private. However, a private writer cannot be used, since by definition private methods can only be called in the receiverless form.
+
+==To do:
+
+* Generate documentation for the shadow class.
+
+* Change name to CStruct? CStructure?
+
+* Find a way to propagate append_features so that CShadow can be included in modules and modules can contribute shadow_attrs.
+
+* option to omit the "self" pointer, or put it at the end of the struct
+  automatically omit it in a class if no ShadowObjectAttributes point to it?
+
+* shadow_struct_constructor class method to use DATA_WRAP_STRUCT
+
+* check if define_method will be a problem with Ruby 1.7/1.8.
+
+* Use CNativeAttribute as a default attribute? Or use the attr class hierarchy to supply defaults?
+
+=end
+
+require "cgen/cgen"
+require "cgen/attribute"
+
+module CShadow
+  SHADOW_SUFFIX = "_Shadow"
+  
+  def self.append_features base_class
+    unless base_class.is_a? Class
+      raise TypeError, "\nCShadow can be included only in a Class"
+    end
+
+    unless base_class.ancestors.include? self
+puts "Setting ShadowBaseClass for #{base_class.name}"
+      base_class.const_set :ShadowBaseClass, base_class
+      base_class.extend ClassMethods
+    end
+
+    super ### put this inside the unless block? and before extend?
+  end
+  
+  module ClassMethods
+    def commit
+      sl = shadow_library
+puts "Committing #{sl.name}"
+
+      classes_to_commit = []
+      ObjectSpace.each_object(Class) do |cl|
+        if cl.respond_to? :shadow_library
+          puts "  " + cl.name
+            puts "    " + cl.shadow_library.name
+          if cl.shadow_library == sl
+            classes_to_commit << cl
+            cl.before_commit
+          else
+            puts "    #{cl.shadow_library.name} != #{sl.name}"
+          end
+        end
+#        if cl.respond_to? :shadow_library and
+#           cl.shadow_library == sl
+#          classes_to_commit << cl
+#          cl.before_commit
+#        end
+      end
+
+      if ObjectSpace.each_object(self::ShadowBaseClass) {} > 0
+        raise CGenerator::Library::CommitError,
+              "\nCommitted #{self::ShadowBaseClass} with existing objects"
+        ## should also check other class trees that use the same lib...
+      end
+
+      # This is done here, rather than in #inherited, to get around
+      # the Ruby bug with names of nested classes. It's ugly...
+      # Better: register classes with libraries...
+      for cl in classes_to_commit
+        # make sure the following have been defined by now
+        cl.shadow_struct
+        cl.new_method; cl.mark_function; cl.free_function
+        cl._dump_data_method; cl._load_data_method; cl._alloc_method
+      end
+
+      sl.commit
+
+      for cl in classes_to_commit
+        cl.protect_shadow_attrs
+        cl.after_commit
+      end
+    end
+
+    def before_commit; end
+    def after_commit;  end
+
+    def committed?
+      shadow_library.committed?
+    end
+
+    def each_shadow_attr(&bl)
+      if superclass.respond_to? :each_shadow_attr
+        superclass.each_shadow_attr(&bl)
+      end
+      @shadow_attrs.each(&bl) if @shadow_attrs
+    end
+
+    def shadow_attrs
+      proxy = Object.new.extend Enumerable
+      shadow_class = self
+      proxy.instance_eval {@target = shadow_class}
+      def proxy.each(&bl)
+        @target.each_shadow_attr(&bl)
+      end
+      proxy
+    end
+
+    def shadow_library lib = nil
+      if defined? self::ShadowLibrary
+        if lib
+          puts lib.name
+          raise RuntimeError,
+                "\nClass #{self::ShadowBaseClass.name} is already associated" +
+                " with library #{self::ShadowLibrary.name}."
+        end
+      else
+        case lib
+        when CGenerator::Library
+          self.const_set :ShadowLibrary, lib
+        when Class
+          begin
+            self.const_set :ShadowLibrary, lib.shadow_library
+          rescue NameError
+            raise ScriptError, "\n#{lib} does not include CShadow."
+          end
+        when String
+          self.const_set :ShadowLibrary, CGenerator::Library.new(lib)
+        when nil
+puts "ShadowBaseClass of #{self.name} is #{self::ShadowBaseClass.name}"
+          n = self::ShadowBaseClass.name
+          n.gsub! /_/, '__'
+          n.gsub! /::/, '_' # almost reversible
+          self.const_set :ShadowLibrary, CGenerator::Library.new(n)
+        else
+          raise ArgumentError,
+                "\n#{lib} is not a Library, String, or Class"
+        end
+      end
+      self::ShadowLibrary
+    end
+
+    def shadow_library_file file = nil
+      if defined? @shadow_library_file
+        if file
+          raise RuntimeError,
+                "\nClass #{self} is already associated" +
+                " with file #{@shadow_library_file}."
+        end
+        @shadow_library_file
+      elsif file
+        case file
+        when CGenerator::CFile
+          file_name = file.name
+        when String
+          file_name = file
+        else
+          raise ArgumentError, "\n#{file} is not a String or CFile."
+        end
+        file_name = file_name.sub(/\.[ch]$/, "")
+        @shadow_library_file = shadow_library.add_file file_name
+      else
+        if superclass.respond_to? :shadow_library_file
+          superclass.shadow_library_file
+        else
+          [shadow_library.include_file, shadow_library.source_file]
+        end
+      end
+    end
+
+    def shadow_library_include_file
+      shadow_library_file[0]
+    end
+
+    def shadow_library_source_file
+      shadow_library_file[1]
+    end
+
+    #== Convenience methods ==#
+
+    def define_method name, subclass = CGenerator::Method, &block
+      sf = shadow_library_source_file
+      m = sf.define_method self, name, subclass
+      m.scope :extern
+      m.declare :shadow => "#{shadow_struct.name} *shadow"
+      m.setup :shadow =>
+        "Data_Get_Struct(self, #{shadow_struct.name}, shadow)"
+      m.instance_eval &block if block
+      m
+    end
+
+    def define_class_method name, subclass = CGenerator::SingletonMethod,
+        &block
+      sf = shadow_library_source_file
+      m = sf.define_singleton_method self, name, subclass
+      m.scope :extern
+      m.instance_eval &block if block
+      m
+    end
+
+    #== Internal methods ==#
+
+    def shadow_struct_name
+      name.gsub(/_/, '__').gsub(/::/, '_o_') + CShadow::SHADOW_SUFFIX
+      # To preserve differences.
+    end
+    private :shadow_struct_name
+
+    def shadow_struct
+      unless @shadow_struct
+        sf = shadow_library_source_file
+        ssn = shadow_struct_name
+        @shadow_struct = shadow_library.declare_extern_struct(ssn)
+        if self == self::ShadowBaseClass
+          @shadow_struct.declare :self => "VALUE self"
+        else
+          sss = superclass.shadow_struct
+          shadow_struct.inherit\
+            sss.inherit!,
+            "/* #{superclass.shadow_struct.name} members */",
+            sss.declare!, " "
+        end
+      end
+      @shadow_struct
+    end
+
+    def new_method
+      unless @new_method
+        sf = shadow_library_source_file
+        ssn = shadow_struct.name
+        @new_method = sf.define_singleton_method self,
+          :new, AttrClassMethod
+        @new_method.instance_eval {
+          scope :extern
+          c_array_args
+          declare :object => "VALUE object"
+          declare :shadow => "#{ssn} *shadow"
+          setup :shadow_struct => %{
+            object = Data_Make_Struct(self,
+                       #{ssn},
+                       mark_#{ssn},
+                       free_#{ssn},
+                       shadow);
+            shadow->self = object;
+          }.tabto(0)
+          body attr_code!
+          body %{
+            rb_obj_call_init(object, argc, argv);
+          }
+          returns "object"
+        }
+        if superclass.respond_to? :shadow_struct
+          @new_method.attr_code superclass.new_method.attr_code!
+        end
+      end
+      @new_method
+    end
+
+    def mark_function
+      unless @mark_function
+        sf = shadow_library_source_file
+        ssn = shadow_struct.name
+        @mark_function = sf.define("mark_#{ssn}", MarkFunction)
+        @mark_function.instance_eval {
+          scope :extern
+          arguments "#{ssn} *shadow"
+          return_type "void"
+        }
+        if superclass.respond_to? :shadow_struct
+          @mark_function.mark superclass.mark_function.mark!
+        end
+      end
+      @mark_function
+    end
+
+    def free_function
+      unless @free_function
+        sf = shadow_library_source_file
+        ssn = shadow_struct.name
+        @free_function = sf.define("free_#{ssn}", FreeFunction)
+        @free_function.instance_eval {
+          scope :extern
+          arguments "#{ssn} *shadow"
+          return_type "void"
+        }
+        if superclass.respond_to? :shadow_struct
+          @free_function.free superclass.free_function.free!
+        end
+      end
+      @free_function
+    end
+
+    def _dump_data_method
+      unless @_dump_data_method
+        @_dump_data_method = define_method (:_dump_data, AttrMethod) {
+          declare :result   => "VALUE   result"
+          setup   :result   => "result  = rb_ary_new()"
+          body attr_code!
+          returns "result"
+        }
+        if superclass.respond_to? :shadow_struct
+          @_dump_data_method.attr_code \
+            superclass._dump_data_method.attr_code!
+        end
+      end
+      @_dump_data_method
+    end
+
+    def _load_data_method
+      unless @_load_data_method
+        @_load_data_method = define_method (:_load_data, AttrMethod) {
+          arguments :from_array
+          declare :tmp  => "VALUE tmp"
+          body attr_code!
+          returns "from_array"  ## needed?
+        }
+        if superclass.respond_to? :shadow_struct
+          @_load_data_method.attr_code \
+            superclass._load_data_method.attr_code!
+        end
+      end
+      @_load_data_method
+    end
+
+    # same as new_method, but no initialize -- factor this
+    # can we use define_class_method?
+    def _alloc_method
+      unless @_alloc_method
+        sf = shadow_library_source_file
+        ssn = shadow_struct.name
+        @_alloc_method = sf.define_singleton_method(self, :_alloc)
+        @_alloc_method.instance_eval {
+          scope :extern
+          c_array_args
+          declare :object => "VALUE object"
+          declare :shadow => "#{ssn} *shadow"
+          body %{
+            object = Data_Make_Struct(self,
+                       #{ssn},
+                       mark_#{ssn},
+                       free_#{ssn},
+                       shadow);
+            shadow->self = object;
+          }
+          returns "object"
+        }
+      end
+      @_alloc_method
+    end
+
+
+  private
+
+    def check_overwrite_shadow_attrs(*symbols)
+      for attr in shadow_attrs
+        for sym in symbols
+          if sym == attr.var
+            raise NameError, "\n#{sym} is a shadow attr."
+          end
+        end
+      end
+    end
+
+    def attr_accessor(*args)
+      check_overwrite_shadow_attrs(*args)
+      super
+    end
+
+    def attr_reader(*args)
+      check_overwrite_shadow_attrs(*args)
+      super
+    end
+
+    def attr_writer(*args)
+      check_overwrite_shadow_attrs(*args)
+      super
+    end
+
+#    alias really_protected protected
+    def protected(*args)
+      (@to_be_protected ||= []).concat args
+    end
+
+#    alias really_private private
+    def private(*args)
+      (@to_be_private ||= []).concat args
+    end
+
+    def protect_shadow_attrs
+#      really_protected *@to_be_protected
+#      really_private *@to_be_private
+      ## should undo the aliasing
+    end
+    public :protect_shadow_attrs
+
+    def shadow_attr_accessor h
+      shadow_attr h, :rw
+    end
+
+    def shadow_attr_reader h
+      shadow_attr h, :r
+    end
+
+    def shadow_attr_writer h
+      shadow_attr h, :w
+    end
+
+    def shadow_attr h, kind = nil
+      reader = (kind == :rw or kind == :r)
+      writer = (kind == :rw or kind == :w)
+      unless reader or writer or kind == nil
+        raise ArgumentError,
+              "\nUnrecognized shadow accessor #{kind.inspect}"
+      end
+
+      source_file = shadow_library_source_file
+      ssn = shadow_struct.name
+      @shadow_attrs ||= []
+
+      for var, decl in h
+        var = var.intern if var.is_a? String
+
+        if instance_methods.include?(var.to_s) or
+           instance_methods.include?(var.to_s + '=')
+          raise NameError, "\n#{var} already has a Ruby attribute."
+        end
+
+        matches = AttributeTypes.collect { |t|
+           [t, t.match decl]
+        }.select {|t, match| match}
+
+        if matches.size > 1
+          raise StandardError, %{
+            No unique AttributeType for '#{decl}':
+              each of #{matches.map{|t|t[0]}.join ", "} match.
+          }.tabto(0)
+        end
+
+        if matches.size < 1
+          raise StandardError, "\nNo Attribute type matches '#{decl}'."
+        end
+
+        attr_type, match = matches[0]
+        attr = attr_type.new var, match
+        each_shadow_attr { |a|
+          if a.var == attr.var or a.cvar == attr.cvar
+            raise NameError, "\nAttribute #{a.inspect} already exists."
+          end
+        }
+        @shadow_attrs << attr
+
+        shadow_struct.declare attr.cvar => attr.cdecl
+
+        new_method.attr_code attr.init if attr.init
+
+        mark_function.mark attr.mark
+        free_function.free attr.free
+
+        _dump_data_method.attr_code attr.dump
+        _load_data_method.attr_code attr.load
+
+        if reader
+          unless attr.reader
+            raise ScriptError, "\nCan't have a reader method for #{attr}."
+          end
+          source_file.define_method(self, var).instance_eval {
+            scope :extern
+            declare :shadow => "#{ssn} *shadow"
+            declare :result => "VALUE result"
+            body "Data_Get_Struct(self, #{ssn}, shadow)", attr.reader
+            returns "result"
+          }
+        end
+
+        if writer
+          unless attr.writer
+            raise ScriptError, "\nCan't have a writer method for #{attr}."
+          end
+          source_file.define_method(self, "#{var}=").instance_eval {
+            scope :extern
+            c_array_args {
+              required  :arg
+              typecheck :arg => attr.check
+            }
+            declare :shadow => "#{ssn} *shadow"
+            body "Data_Get_Struct(self, #{ssn}, shadow)", attr.writer
+            returns "arg"
+          }
+        end
+
+      end
+
+    end
+  end
+
+  class AttrCodeAccumulator < CGenerator::CFragment::StatementAccumulator
+    include CGenerator::SetAccumulator
+  end
+  
+  class AttrMethod < CGenerator::Method
+    accumulator(:attr_code) {AttrCodeAccumulator}
+  end
+  
+  class AttrClassMethod < CGenerator::SingletonMethod
+    accumulator(:attr_code) {AttrCodeAccumulator}
+  end
+
+  class MarkFunction < CGenerator::Function
+    accumulator(:mark) {AttrCodeAccumulator}
+    
+    def initialize(*args)
+      super
+      body "rb_gc_mark(shadow->self)", mark!
+    end
+  end
+  
+  class FreeFunction < CGenerator::Function
+    accumulator(:free) {AttrCodeAccumulator}
+    
+    def initialize(*args)
+      super
+      body free!, "free(shadow)"  # free the struct last!
+    end
+  end
+
+end # module CShadow
+
+
+if $0 == __FILE__
+  
+  #
+  #  Tests in this file focus on:
+  #   - shadow objects in general, rather than particular attribute
+  #     types, which are tested in attribute.rb
+  #   - behavior accessible from Ruby. The examples (complex.rb,
+  #     matrix.rb) test shadow objects from C.
+  #  Features tested include inheritance, multiple attributes, omission
+  #  of readers or writers, etc.
+  #
+
+  require 'rubyunit'  
+  
+  # EmptyBase hierarchy tests the following:
+  #  - inheritance with "gaps"
+  #  - using the same attr name in parallel branches
+  
+  class EmptyBase
+    include CShadow
+  end
+  
+  class EBSub_1 < EmptyBase
+    shadow_attr_accessor :x => "int x"
+  end
+  
+  class EBSub_1_1 < EBSub_1
+  end
+  
+  class EBSub_2 < EmptyBase
+  end
+  
+  class EBSub_2_2 < EBSub_2
+    shadow_attr_accessor :x => "int x"
+  end
+  
+  
+  # Base hierarchy tests the following:
+  #  - inheritance with multiple attributes
+  #  - omission of readers and writers
+  #  - accessors with different names than the variables
+  #  - conflicting accessor names or C variable names
+  #  - #each_shadow_attr and #shadow_attrs
+  #  - protected and private attrs
+  
+  class Base
+    include CShadow
+    shadow_attr_reader :x => 'int x'
+    shadow_attr_writer :y => 'int y'
+    shadow_attr_accessor :obj => Array
+  end
+  
+  class Sub_1 < Base
+    shadow_attr :z => 'int zzz'
+  end
+  
+  # test a class with no shadow_attrs
+  class Sub_2 < Base
+    attr_reader :ruby_reader
+    attr_writer :ruby_writer
+  end
+  
+  module Mod_For_Sub_3
+    class Sub_3 < Base
+      # Make sure the nested class name bug isn't biting today.
+    end
+  end
+  
+  class Sub_4 < Base
+    private :x
+    protected :y=
+  end
+    
+  # OtherBase tests using shadow_library to specify another library
+  # to put definitions in. OtherFile tests using shadow_library_file
+  # to put definintions in another file within the same library.
+  
+  class OtherBase
+    include CShadow
+    shadow_library Base
+    shadow_attr_accessor :str => "char *pchar"
+  end
+  
+  class OtherFile < OtherBase
+    shadow_library_file "OtherFile"
+    shadow_attr_accessor :x => "double x"
+  end
+  
+  
+  # Compile-time tests (that is, pre-commit)
+  
+  class CompileTimeTestCase < TestCase
+    def test_conflict
+      assert_exception(NameError) {
+        Sub_2.class_eval {
+          shadow_attr "y" => 'char * yy'
+        }
+      }
+      assert_exception(NameError) {
+        Sub_2.class_eval {
+          shadow_attr :y => 'char * yy'
+        }
+      }
+      assert_exception(NameError) {
+        Sub_2.class_eval {
+          shadow_attr :yy => 'char * y'
+        }
+      }
+      
+      # Checking overwrite by attr_*
+      assert_exception(NameError) {
+        Sub_2.class_eval {
+          attr_accessor :y
+        }
+      }
+      assert_exception(NameError) {
+        Sub_2.class_eval {
+          attr_reader :y
+        }
+      }
+      assert_exception(NameError) {
+        Sub_2.class_eval {
+          attr_writer :y
+        }
+      }
+      
+      # Checking overwrite by shadow_attr_*
+      assert_exception(NameError) {
+        Sub_2.class_eval {
+         shadow_attr_reader :ruby_writer
+        }
+      }
+      assert_exception(NameError) {
+        Sub_2.class_eval {
+         shadow_attr_writer :ruby_reader
+        }
+      }
+    end
+  end
+  
+  
+  Dir.mkdir "tmp" rescue SystemCallError
+  Dir.chdir "tmp"
+  
+  EmptyBase.commit
+  Base.commit         # do not commit OtherBase
+  
+
+  # Run-time tests (that is, post-commit)
+  
+  class EmptyBaseTestCase < TestCase
+  
+    def test_empty_base
+      ebs1 = EBSub_1.new
+      ebs2 = EBSub_2.new
+      ebs11 = EBSub_1_1.new
+      ebs22 = EBSub_2_2.new
+
+      ebs1.x = 3
+      ebs11.x = 4
+      ebs22.x = 5
+
+      assert_exception(NameError) {
+        ebs2.x = 6
+      }
+
+      assert_equal(3, ebs1.x)
+      assert_equal(4, ebs11.x)
+      assert_equal(5, ebs22.x)
+    end
+  
+  end
+  
+  class BaseTestCase < TestCase
+  
+    def test_limited_access
+      b = Sub_1.new
+      
+      assert_exception(NameError) {
+        b.x = 1
+      }
+      assert_equal(0, b.x)
+      
+      b.y = 2
+      assert_exception(NameError) {
+        b.y
+      }
+      
+      assert_exception(NameError) {
+        b.z = 3
+      }
+      assert_exception(NameError) {
+        b.z
+      }
+    end
+    
+    def test_inherit
+      b = Sub_1.new
+      
+      # test inheritance of attr initializers
+      assert_equal(nil, b.obj)
+      
+      # test inheritance of attr dump/load code
+      b.obj = [1,2,3]
+      assert_equal([1,2,3], Marshal.load(Marshal.dump(b)).obj)
+    end
+    
+    def test_protect
+      a = Base.new
+      b = Sub_4.new
+      assert_no_exception {a.x; a.y = 2}
+      assert_exception(NameError) {
+        b.x
+      }
+      assert_exception(NameError) {
+        b.y = 2
+      }
+    end
+    
+    def test_reflection
+      names = Sub_1.shadow_attrs.collect { |attr| attr.var.to_s }.sort
+      assert_equal(['obj', 'x', 'y', 'z'], names)
+    end
+  
+  end
+  
+  class OtherBaseTestCase < TestCase
+  
+    def test_sharing_library
+      ob = OtherBase.new
+      ob.str = "fred"
+      assert_equal("fred", ob.str)
+      
+      ob = OtherFile.new
+      ob.x = 1.2
+      assert_equal(1.2, ob.x)      
+    end
+  
+  end
+  
+end
