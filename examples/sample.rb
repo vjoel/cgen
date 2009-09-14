@@ -1,27 +1,3 @@
-#!/usr/bin/env ruby
-
-=begin
-
-Sample for CGenerator.
-
-==version
-
-CGenerator 0.14
-
-The current version of this software can be found at 
-((<"http://redshift.sourceforge.net/cgen
-"|URL:http://redshift.sourceforge.net/cgen>)).
-
-==license
-This software is distributed under the Ruby license.
-See ((<"http://www.ruby-lang.org"|URL:http://www.ruby-lang.org>)).
-
-==author
-Joel VanderWerf,
-((<vjoel@users.sourceforge.net|URL:mailto:vjoel@users.sourceforge.net>))
-
-=end
-
 require 'cgen/cgen'
 require 'fileutils'
 

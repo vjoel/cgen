@@ -1,9 +1,10 @@
 require 'cgen/cshadow'
 
-class MyComplex2 < Numeric
+class Complex < Numeric
   include CShadow
 
-  shadow_attr_accessor :re => "double re", :im => "double im"
+  shadow_attr_accessor :re => "double re"
+  shadow_attr_accessor :im => "double im"
 
   def initialize re, im
     self.re = re
@@ -29,14 +30,10 @@ class MyComplex2 < Numeric
   }
 end
 
-require 'ftools'
-dir = File.join("tmp", RUBY_VERSION)
-File.mkpath dir
-Dir.chdir dir do
-  MyComplex2.commit
-end
+Complex.commit
 
-z = MyComplex2.new 5, 1.3
+z = Complex.new 5, 1.3
+p z             # ==> #<Complex:0xb7dc0098 re=5.0, im=1.3>
 puts z.abs      # ==> 5.1662365412358
 z.scale! 3.0    # float
 p [z.re, z.im]  # ==> [15.0, 3.9]

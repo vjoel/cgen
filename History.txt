@@ -1,3 +1,13 @@
+cgen 0.16.2
+
+  - makedepend step uses gcc -MM if appropriate
+
+  - More documentation and refactoring thereof.
+
+cgen 0.16.1
+
+  - More documentation and refactoring thereof.
+
 cgen 0.16.0
 
   - Moved to Mr. Bones, git, gems, rubyforge.

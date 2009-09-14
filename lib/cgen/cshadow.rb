@@ -23,8 +23,10 @@ require "cgen/attribute"
 # 
 # ==Usage
 #
-# class MyClass
-#   include CShadow
+#   class MyClass
+#     include CShadow
+#     shadow_attr_accessor :x => "int x" # fox example
+#   end
 #
 # Include CShadow in the base class(es) that need to have shadow attributes. The
 # base class is assigned a CGenerator::Library, which can be accessed using
@@ -54,7 +56,7 @@ require "cgen/attribute"
 # Shadow classes that are placed in the same library can still be put in
 # separate C source files, using #shadow_library_file:
 #
-# shadow_library_file <CFile or String>
+#   shadow_library_file <CFile or String>
 #
 # This setting is inherited (and can be overridden) by subclasses of the current
 # class. If a class calls both #shadow_library and #shadow_library_file then
@@ -181,66 +183,66 @@ require "cgen/attribute"
 # ==Limitations:
 #
 # * Hash args are ordered unpredictably, so if struct member order is
-# significant (for example, because you want to pass the struct to C code that
-# expects it that way), use a separate declare statement for each member. Also,
-# take note of the self pointer at the beginning of the struct.
+#   significant (for example, because you want to pass the struct to C code that
+#   expects it that way), use a separate declare statement for each member.
+#   Also, take note of the self pointer at the beginning of the struct.
 #
 # * Creating a ruby+shadow object has a bit more time/space overhead than just a
-# C object, so CShadow may not be the best mechansism for managing heap
-# allocated data (for example, if you want lots of 2-element arrays). Also,
-# CShadow objects are fixed in size (though their members can point to other
-# structures).
+#   C object, so CShadow may not be the best mechansism for managing heap
+#   allocated data (for example, if you want lots of 2-element arrays). Also,
+#   CShadow objects are fixed in size (though their members can point to other
+#   structures).
 #
 # * CShadow attributes are, of course, not dynamic. They are fixed at the time
-# of #commit. Otherwise, they behave essentially like Ruby attributes, except
-# that they can be accessed only with methods or from C code; they cannot be
-# accessed with the @ notation. Of course, the reader and writer for a shadow
-# attribute can be flagged as protected or private. However, a private writer
-# cannot be used, since by definition private methods can only be called in the
-# receiverless form.
+#   of #commit. Otherwise, they behave essentially like Ruby attributes, except
+#   that they can be accessed only with methods or from C code; they cannot be
+#   accessed with the @ notation. Of course, the reader and writer for a shadow
+#   attribute can be flagged as protected or private. However, a private writer
+#   cannot be used, since by definition private methods can only be called in 
+#   the receiverless form.
 #
 # * CShadow is designed for efficient in-memory structs, not packed,
-# network-ordered data as for example in network protocols. See the
-# bit-struct project for the latter.
+#   network-ordered data as for example in network protocols. See the
+#   bit-struct project for the latter.
 #
 # ==To do:
 #
 # * It should be easier to get a handle to entities. Below, shadow_attr has been
-# hacked to return a list of pairs of functions. But it should be easier and
-# more general.
+#   hacked to return a list of pairs of functions. But it should be easier and
+#   more general.
 #
 # * Optimization: if class A<B, and their free func have the same content, use
-# B's function in A, and don't generate a new function for A. Similarly for all
-# the other kinds of functions.
+#   B's function in A, and don't generate a new function for A. Similarly for 
+#   all the other kinds of functions.
 #
 # * Allow
 #
-# shadow_attr "int x", "double y"
+#     shadow_attr "int x", "double y"
 #
-# or even
+#   or even
 #
-# attr_accessor :a, :b, "int x", "double y"
+#     attr_accessor :a, :b, "int x", "double y"
 #
-# and (in cgen)
+#   and (in cgen)
 #
-# declare "int x", "double y"
+#     declare "int x", "double y"
 #
-# The ruby name will be extracted from the string using the matching pattern.
+#   The ruby name will be extracted from the string using the matching pattern.
 #
 # * Generate documentation for the shadow class.
 #
 # * Change name to CStruct? CStructure?
 #
 # * Find a way to propagate append_features so that CShadow can be included in
-# modules and modules can contribute shadow_attrs.
+#   modules and modules can contribute shadow_attrs.
 #
 # * option to omit the "self" pointer, or put it at the end of the struct
-# automatically omit it in a class if no ShadowObjectAttributes point to it?
+#   automatically omit it in a class if no ShadowObjectAttributes point to it?
 #
 # * shadow_struct_constructor class method to use DATA_WRAP_STRUCT
 #
 # * Use CNativeAttribute as a default attribute? Or use the attr class hierarchy
-# to supply defaults?
+#   to supply defaults?
 #
 module CShadow
   SHADOW_SUFFIX = "_Shadow"
@@ -712,7 +714,6 @@ module CShadow
 
   private
   
-    # :stopdoc:
     def check_overwrite_shadow_attrs(*symbols)
       for attr in shadow_attrs
         for sym in symbols
@@ -737,20 +738,19 @@ module CShadow
       check_overwrite_shadow_attrs(*args)
       super
     end
-    # :startdoc:
 
     # Same as #shadow_attr with the +:reader+ and +:writer+ options.
-    def shadow_attr_accessor(*args)
+    def shadow_attr_accessor(*args) # :doc:
       shadow_attr :reader, :writer, *args
     end
 
     # Same as #shadow_attr with the +:reader+ option.
-    def shadow_attr_reader(*args)
+    def shadow_attr_reader(*args) # :doc:
       shadow_attr :reader, *args
     end
 
     # Same as #shadow_attr with the +:writer+ option.
-    def shadow_attr_writer(*args)
+    def shadow_attr_writer(*args) # :doc:
       shadow_attr :writer, *args
     end
 
@@ -783,7 +783,7 @@ module CShadow
     #
     # Typically, #shadow_attr_accessor and so on are called instead.
     #
-    def shadow_attr(*args)
+    def shadow_attr(*args) # :doc:
       attr_persists = true
       for arg in args
         case arg

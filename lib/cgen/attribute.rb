@@ -27,7 +27,7 @@ module CShadow
   #
   # The subclass hierarchy has two branches: ObjectAttribute and
   # CNativeAttribute. The former is a reference to a Ruby object (in other
-  # words, a struct member of type +VALUE+. The latter has subclasses for
+  # words, a struct member of type +VALUE+). The latter has subclasses for
   # various C data types, such as +double+ and <tt>char *</tt>.
   #
   # ==Adding new attribute classes

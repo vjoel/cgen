@@ -1,6 +1,8 @@
 *.bck
-pkg/*
-doc/*
+pkg
+doc
 junk/*
 tmp/*
 tmp
+*/tmp
+*/junk

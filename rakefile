@@ -31,11 +31,10 @@ programs. Includes CShadow module for defining classes in terms of C structs
 with accessors and inheritance.
 END
 PROJ.changes = File.read(PROJ.history_file)[/^\w.*?(?=^\w)/m]
+(PROJ.rdoc.dir = File.readlink(PROJ.rdoc.dir)) rescue nil
 
 PROJ.spec.opts << '--color'
 PROJ.test.files = Dir["test/test-*.rb"]
-
-### pkg dir in tmp
 
 task :release => ["gem:release", "doc:release"]
 

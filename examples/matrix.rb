@@ -1,5 +1,3 @@
-#!/usr/bin/env ruby
-
 require 'cgen/cshadow'
 
 class MyMatrix
