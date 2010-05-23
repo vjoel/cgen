@@ -891,8 +891,8 @@ class Library < Template
       
       makedepend_cmd =
         case cfg["CC"]
-        when "gcc"
-          "gcc -MM -MF depend"
+        when /gcc/
+          "#{cfg["CC"]} -MM -MF depend"
         else
           "makedepend -fdepend"
         end
@@ -903,7 +903,7 @@ class Library < Template
       }
       unless result
         log_data = File.read(@logname) rescue nil
-        msg = "\n  makedepend failed for #{@name}."
+        msg = "\n  `#{makedepend_cmd}` failed for #{@name}."
         if log_data
           msg <<
             "\n  Transcript is saved in #{@name}/#{@logname} and follows:" +
