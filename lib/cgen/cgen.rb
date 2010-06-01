@@ -889,18 +889,19 @@ class Library < Template
       cfg = Config::CONFIG
       dirs = [cfg["sitearchdir"], cfg["archdir"], cfg["includedir"]]
       
-      makedepend_cmd =
-        case cfg["CC"]
-        when /gcc/
-          "#{cfg["CC"]} -MM -MF depend"
-        else
-          "makedepend -fdepend"
-        end
+      case cfg["CC"]
+      when /gcc/
+        makedepend_cmd =
+          "#{cfg["CC"]} -MM *.c -I#{dirs.join " -I"} >depend 2>#{@logname}"
       
-      result = system %{
-        touch depend
-        #{makedepend_cmd} *.c -I#{dirs.join " -I"} >#{@logname} 2>&1
-      }
+      else
+        makedepend_cmd =
+          "touch depend && \
+          makedepend -fdepend *.c -I#{dirs.join " -I"} >#{@logname} 2>&1"
+      end
+
+      result = system makedepend_cmd
+
       unless result
         log_data = File.read(@logname) rescue nil
         msg = "\n  `#{makedepend_cmd}` failed for #{@name}."

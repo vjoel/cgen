@@ -267,10 +267,11 @@ class LongAttributeTest < AttributeTest
     assert_equal(-5, @las.x)
     @las.x = 2**31-1
     assert_equal(2**31-1, @las.x)
-    assert_raises(RangeError) {@las.x = 2**31}
+    assert_raises(RangeError) {@las.x = 2**63}
+      # on 32 bit, should use: @las.x = 2**31
     @las.x = -2**31
     assert_equal(-2**31, @las.x)
-    assert_raises(RangeError) {@las.x = -2**31 - 1}
+    assert_raises(RangeError) {@las.x = -2**63 - 1}
   end
 
   def test_conversion

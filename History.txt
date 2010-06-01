@@ -1,3 +1,9 @@
+cgen 0.16.3
+
+  - fix bug with makedepend command line args
+  
+  - updated tests for 64 bit
+
 cgen 0.16.2
 
   - makedepend step uses gcc -MM if appropriate
