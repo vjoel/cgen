@@ -1,40 +1,34 @@
-# Look in the tasks/setup.rb file for the various options that can be
-# configured in this Rakefile. The .rake files in the tasks directory
-# are where the options are used.
-
 begin
   require 'bones'
-  Bones.setup
 rescue LoadError
-  begin
-    load 'tasks/setup.rb'
-  rescue LoadError
-    raise RuntimeError, '### please install the "bones" gem ###'
-  end
+  abort '### please install the bones gem ###'
 end
 
 ensure_in_path 'lib'
 require 'cgen/cgen'
 
-task :default => 'spec:run'
-
-PROJ.name = 'cgen'
-PROJ.authors = 'Joel VanderWerf'
-PROJ.email = 'vjoel@users.sourceforge.net'
-PROJ.url = 'http://rubyforge.org/projects/cgen/'
-PROJ.version = CGenerator::VERSION
-PROJ.rubyforge.name = 'cgen'
-PROJ.summary = "Library for packed binary data stored in ruby Strings"
-PROJ.description = <<END
+Bones {
+  name            'cgen'
+  authors         'Joel VanderWerf'
+  email           'vjoel@users.sourceforge.net'
+  url             'http://rubyforge.org/projects/cgen'
+  rubyforge.name  'cgen'
+  version         CGenerator::VERSION
+  readme_file     'README.txt'
+  
+  summary         'Library for packed binary data stored in ruby Strings'
+  description <<END
 Framework for dynamically generating and loading C extensions from Ruby
 programs. Includes CShadow module for defining classes in terms of C structs
 with accessors and inheritance.
 END
-PROJ.changes = File.read(PROJ.history_file)[/^\w.*?(?=^\w)/m]
-(PROJ.rdoc.dir = File.readlink(PROJ.rdoc.dir)) rescue nil
 
-PROJ.spec.opts << '--color'
-PROJ.test.files = Dir["test/test-*.rb"]
+  changes         File.read(history_file)[/^\w.*?(?=^\w)/m]
+  (rdoc.dir       File.readlink(rdoc.dir)) rescue nil
+
+  spec.opts << '--color'
+  test.files = Dir["test/test-*.rb"]
+}
 
 task :release => ["gem:release", "doc:release"]
 

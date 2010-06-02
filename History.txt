@@ -1,4 +1,6 @@
 cgen 0.16.3
+  
+  - updated rakefile for Bones 3.4.3
 
   - fix bug with makedepend command line args
   
