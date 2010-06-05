@@ -1,5 +1,7 @@
 cgen 0.16.3
 
+  - misc fixes for 1.9 compatibility
+
   - removed obsolete install.rb
   
   - updated rakefile for Bones 3.4.3

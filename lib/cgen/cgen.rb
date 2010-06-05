@@ -1270,7 +1270,12 @@ class CFragment < Template
     end
     
     def output_one item
-      str = item.to_s
+      case item
+      when Array
+        str = item.join("") ## 1.9 compatibility
+      else
+        str = item.to_s
+      end
 #      if str =~ /(?:\A|[;}])\s*\z/
       if str.empty? or str =~ /[\s;}]\z/ or str =~ /\A\s*(?:\/\/|#)/
         str
@@ -1811,12 +1816,14 @@ class MethodPrototype < Prototype
           ## this could be a function call
           setup "#{arg} typecheck" => %{\
             if (!NIL_P(#{arg}) &&
-                rb_obj_is_kind_of(#{arg}, #{declare_class argtype}) != Qtrue)
+                rb_obj_is_kind_of(#{arg}, #{declare_class argtype}) != Qtrue) {
+              VALUE v = rb_funcall(
+                rb_funcall(#{arg}, #{declare_symbol :class}, 0),
+                #{declare_symbol :to_s}, 0);
               rb_raise(#{declare_class TypeError},
                        "argument #{arg} declared #{argtype} but passed %s.",
-                       STR2CSTR(rb_funcall(
-                         rb_funcall(#{arg}, #{declare_symbol :class}, 0),
-                         #{declare_symbol :to_s}, 0)));
+                       StringValueCStr(v));
+            }
           }.tabto(0)
         end
       end

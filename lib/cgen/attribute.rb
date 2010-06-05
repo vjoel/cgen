@@ -367,8 +367,8 @@ module CShadow
             shadow->#{@cvar} = 0;
           else {
             StringValueCStr(arg);
-            len = RSTRING(arg)->len;
-            str = RSTRING(arg)->ptr;
+            len = RSTRING_LEN(arg);
+            str = RSTRING_PTR(arg);
             shadow->#{@cvar} = ALLOC_N(char, len + 1);
 
             if (str)
@@ -391,8 +391,8 @@ module CShadow
           if (arg == Qnil)
             shadow->#{@cvar} = 0;
           else {
-            len = RSTRING(arg)->len;
-            str = RSTRING(arg)->ptr;
+            len = RSTRING_LEN(arg);
+            str = RSTRING_PTR(arg);
             shadow->#{@cvar} = ALLOC_N(char, len + 1);
 
             if (str)

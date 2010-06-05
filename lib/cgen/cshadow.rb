@@ -724,6 +724,7 @@ module CShadow
       end
     end
 
+  public ## 1.9 compatibility (or 1.9 bug?)
     def attr_accessor(*args)
       check_overwrite_shadow_attrs(*args)
       super
@@ -738,6 +739,7 @@ module CShadow
       check_overwrite_shadow_attrs(*args)
       super
     end
+  private ## 1.9 compatibility (or 1.9 bug?)
 
     # Same as #shadow_attr with the +:reader+ and +:writer+ options.
     def shadow_attr_accessor(*args) # :doc:
