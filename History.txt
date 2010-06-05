@@ -1,4 +1,6 @@
 cgen 0.16.3
+
+  - removed obsolete install.rb
   
   - updated rakefile for Bones 3.4.3
 
