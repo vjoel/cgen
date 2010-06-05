@@ -30,6 +30,7 @@ END
   test.files = Dir["test/test-*.rb"]
 }
 
-task :release => ["gem:release", "doc:release"]
+task :release => ["rubyforge:release", "rubyforge:doc_release"]
 
 # EOF
+ 
