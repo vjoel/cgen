@@ -803,12 +803,15 @@ module CShadow
       source_file = shadow_library_source_file
       ssn = shadow_struct.name
       @shadow_attrs ||= []
+      
+      meths = nil
 
       var_map.map do |var, decl|
         var = var.intern if var.is_a? String
+        meths ||= instance_methods(false).map {|sym| sym.to_s} ## 1.9 compat
 
-        if instance_methods(false).include?(var.to_s) or
-           instance_methods(false).include?(var.to_s + '=')
+        if meths.include?(var.to_s) or
+           meths.include?(var.to_s + '=')
           raise NameError, "#{var} already has a Ruby attribute."
         end
 
