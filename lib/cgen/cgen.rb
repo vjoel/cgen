@@ -887,6 +887,7 @@ class Library < Template
     return if /mswin/i =~ RUBY_PLATFORM ## what else can we do?
     build_wrapper do
       cpat = "*.c"
+      chpat = "*.[ch]"
       dep = "depend"
       return if Dir[cpat].all? {|f| test ?<, f, dep}
       
