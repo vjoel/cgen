@@ -614,7 +614,7 @@ class Library < Template
         "\n  Name must be a C identifier."
     end
     
-    @include_file, @source_file = add_file name
+    @include_file, @source_file = add_file "libmain"
     @include_file.include '<ruby.h>'
     
     @init_library_function = define_c_function "Init_" + name
@@ -886,18 +886,22 @@ class Library < Template
   def makedepend
     return if /mswin/i =~ RUBY_PLATFORM ## what else can we do?
     build_wrapper do
+      cpat = "*.c"
+      dep = "depend"
+      return if Dir[cpat].all? {|f| test ?<, f, dep}
+      
       cfg = Config::CONFIG
       dirs = [cfg["sitearchdir"], cfg["archdir"], cfg["includedir"]]
       
       case cfg["CC"]
       when /gcc/
         makedepend_cmd =
-          "#{cfg["CC"]} -MM *.c -I#{dirs.join " -I"} >depend 2>#{@logname}"
+          "#{cfg["CC"]} -MM #{cpat} -I#{dirs.join " -I"} >#{dep} 2>#{@logname}"
       
       else
         makedepend_cmd =
-          "touch depend && \
-          makedepend -fdepend *.c -I#{dirs.join " -I"} >#{@logname} 2>&1"
+          "touch #{dep} && \
+          makedepend -f#{dep} #{cpat} -I#{dirs.join " -I"} >#{@logname} 2>&1"
       end
 
       result = system makedepend_cmd
