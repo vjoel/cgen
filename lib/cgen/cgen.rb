@@ -1033,6 +1033,7 @@ class Library < Template
       c_name  = spec[:c_name]
       mod     = spec[:mod]
       rb_name = spec[:rb_name]
+      cfile   = spec[:cfile]
       
       meth_rec =
         if c_name
@@ -1052,7 +1053,7 @@ class Library < Template
         
         kind = @name.to_s.sub(/\Arb_define_/, "")
         if mod
-          meth_rec[:mod_c_name] ||= @parent.declare_module(mod)  ## @parent ?
+          meth_rec[:mod_c_name] ||= @parent.declare_module(mod, cfile)  ## @parent ?
           meth_rec[:c_name] ||=
             ("#{CGenerator::make_c_name rb_name}" +
              "_#{meth_rec[:mod_c_name]}_#{kind}").intern
@@ -1205,20 +1206,20 @@ class Library < Template
   #
   # The second declaration notices that the library already has a variable that
   # will be initialized to the ID of the symbol, and uses it.
-  def declare_module mod
+  def declare_module mod, cfile = nil
     c_name = "module_#{CGenerator::make_c_name mod.to_s}"
     declare mod => "VALUE #{c_name}"
-    declare_extern mod => "extern VALUE #{c_name}"
+    (cfile || self).declare_extern mod => "extern VALUE #{c_name}"
     setup mod => "#{c_name} = rb_path2class(\"#{mod}\")"
     c_name.intern
   end
   alias declare_class declare_module
   
   # See #declare_module.
-  def declare_symbol sym
+  def declare_symbol sym, cfile = nil
     c_name = "ID_#{CGenerator::make_c_name sym}"
     declare sym => "ID #{c_name}"
-    declare_extern sym => "extern ID #{c_name}"
+    (cfile || self).declare_extern sym => "extern ID #{c_name}"
     setup sym => "#{c_name} = rb_intern(\"#{sym}\")"
     c_name.intern
   end
@@ -1226,10 +1227,10 @@ class Library < Template
   # Like Library#declare_symbol, but converts the ID to a VALUE at library
   # initialization time. Useful for looking up hash values keyed by symbol
   # objects, for example. +sym+ is a string or symbol.
-  def literal_symbol sym
+  def literal_symbol sym, cfile = nil
     c_name = "SYM_#{CGenerator::make_c_name sym}"
     declare sym => "VALUE #{c_name}"
-    declare_extern sym => "extern VALUE #{c_name}"
+    (cfile || self).declare_extern sym => "extern VALUE #{c_name}"
     setup sym => "#{c_name} = ID2SYM(rb_intern(\"#{sym}\"))"
     c_name.intern
   end
@@ -1421,7 +1422,7 @@ class CFile < CFragment
     unless subclass <= Method ## should use assert
       raise "#{subclass.name} is not <= Method"
     end
-    c_name = library.rb_define_method :mod => mod, :rb_name => name
+    c_name = rb_define_method :mod => mod, :rb_name => name, :cfile => self
     define c_name, subclass
   end
   
@@ -1429,7 +1430,7 @@ class CFile < CFragment
   # Used to break large projects up into many files.
   def define_c_module_function mod, name, subclass = ModuleFunction
     raise unless subclass <= ModuleFunction
-    c_name = library.rb_define_module_function :mod => mod, :rb_name => name
+    c_name = rb_define_module_function :mod => mod, :rb_name => name, :cfile => self
     define c_name, subclass
   end
   
@@ -1437,7 +1438,7 @@ class CFile < CFragment
   # Used to break large projects up into many files.
   def define_c_global_function name, subclass = GlobalFunction
     raise unless subclass <= GlobalFunction
-    c_name = library.rb_define_global_function :rb_name => name
+    c_name = rb_define_global_function :rb_name => name, :cfile => self
     define c_name, subclass
   end
   
@@ -1445,13 +1446,13 @@ class CFile < CFragment
   # Used to break large projects up into many files.
   def define_c_singleton_method mod, name, subclass = SingletonMethod
     raise unless subclass <= SingletonMethod
-    c_name = library.rb_define_singleton_method :mod => mod, :rb_name => name
+    c_name = rb_define_singleton_method :mod => mod, :rb_name => name, :cfile => self
     define c_name, subclass
   end
   alias define_c_class_method define_c_singleton_method
   
   def define_alloc_func klass
-    klass_c_name = declare_class klass
+    klass_c_name = declare_class klass, self # cfile
     c_name = "alloc_func_#{klass_c_name}"
     library.init_library_function.body \
       %{rb_define_alloc_func(#{klass_c_name}, #{c_name})}
