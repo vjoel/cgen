@@ -1333,10 +1333,10 @@ class CFile < CFragment
   
   attr_reader :include_file
   
-  def initialize name, library, include_file = nil
+  def initialize name, library, include_file = nil, bare = !!include_file
     super name, library
     @include_file = include_file
-    if include_file
+    if bare
       add preamble!, include!, declare!, define!
     else
       ## it's a little hacky to decide in this way that this is a .h file
