@@ -1,3 +1,11 @@
+cgen 0.16.4
+
+  - api addition: module and symbol declarations can optionally be sent
+    to other file rather than libmain; this supports better separate
+    compilation (in redshift)
+
+  - generated main file is now called libmain.c
+  
 cgen 0.16.3
 
   - misc fixes for 1.9 compatibility
