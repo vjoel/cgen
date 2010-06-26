@@ -53,6 +53,12 @@ class ObjectAttributeTest < AttributeTest
   def make_thing c
     @oas.x = c.new
   end
+  
+  def make_things c, n
+    10.times do
+      make_thing c
+    end
+  end
 
   def trash_thing
     @oas.x = nil
@@ -62,9 +68,8 @@ class ObjectAttributeTest < AttributeTest
     @oas = ObjectAttributeSample.new
     c = Class.new
 
-    10.times do
-      make_thing c
-    end
+    make_things c, 10
+
     GC.start
     assert_equal(1, ObjectSpace.each_object(c) {})
   end
@@ -130,6 +135,12 @@ class ShadowObjectAttributeTest < AttributeTest
   def make_thing c
     @sas.x = c.new
   end
+  
+  def make_things c, n
+    n.times do
+      make_thing c
+    end
+  end
 
   def trash_thing
     @sas.x = nil
@@ -141,9 +152,7 @@ class ShadowObjectAttributeTest < AttributeTest
 
     GC.start
     n = ObjectSpace.each_object(c) {}
-    10.times do
-      make_thing c
-    end
+    make_things c, 10
     GC.start
     assert_equal(n+1, ObjectSpace.each_object(c) {})
   end
