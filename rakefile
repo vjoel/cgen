@@ -30,6 +30,8 @@ END
   test.files = Dir["test/test-*.rb"]
 }
 
+ENV["VERSION"] = CGenerator::VERSION ## why isn't this automatic?
+
 task 'gem:release' => 'rubyforge:release' # to release to rubyforge as well
 
 task :release => ["rubyforge:release", "rubyforge:doc_release"]
