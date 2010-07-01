@@ -596,7 +596,7 @@ module CShadow
                        free_#{ssn},
                        shadow);
             shadow->self = object;
-          }.tabto(0)
+          }
           body attr_code!
           body %{
             rb_obj_call_init(object, argc, argv);
