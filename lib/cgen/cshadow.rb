@@ -123,7 +123,8 @@ require "cgen/attribute"
 # simplicity, CShadow defines three methods in the client class for defining
 # methods and class methods:
 #
-# CShadow.define_c_method CShadow.define_c_class_method
+# CShadow.define_c_method
+# CShadow.define_c_class_method
 # CShadow.define_c_function
 #
 # ===Memory management
@@ -269,7 +270,8 @@ module CShadow
         classes.each do |cl|
           # make sure the following have been defined by now
           cl.shadow_struct
-          cl.new_method; cl.mark_function; cl.free_function
+          cl.new_method
+          cl.check_inherited_functions
           cl._dump_data_method; cl._load_data_method; cl._alloc_method
         end
       end
@@ -517,6 +519,7 @@ module CShadow
     def define_c_method name, subclass = CGenerator::Method, &block
       sf = shadow_library_source_file
       m = sf.define_c_method self, name, subclass
+      c_method_templates[name] = m
       m.scope :extern
       m.declare :shadow => "#{shadow_struct.name} *shadow"
       m.setup :shadow =>
@@ -530,12 +533,15 @@ module CShadow
           subclass = CGenerator::SingletonMethod, &block
       sf = shadow_library_source_file
       m = sf.define_c_singleton_method self, name, subclass
+      c_singleton_method_templates[name] = m
       m.scope :extern
       m.instance_eval(&block) if block
       m
     end
     
-    # Define a global function in the library of this class.
+    # Define a function in the library of this class. By
+    # default, the function has extern scope.
+    # The +name+ is just the function name (as a C function).
     def define_c_function name, subclass = CGenerator::Function, &block
       sf = shadow_library_source_file
       m = sf.define_c_function name, subclass
@@ -543,9 +549,40 @@ module CShadow
       m.instance_eval(&block) if block
       m
     end
-
+    
+    # Define a function in the library of this class. By
+    # default, the function has extern scope.
+    # The +name+ is typically a symbol (like :mark) which is used to
+    # generate a function name in combination with the shadow struct name.
+    #
+    # If a class defines a function with +name+, and the child class does
+    # not do so (i.e. doesn't instantiate the function template to add
+    # code), then the child can call the parent's implementation using
+    # #refer_to_function (see #new_method for an example).
+    def define_inheritable_c_function name,
+          subclass = CGenerator::Function, &block
+      sf = shadow_library_source_file
+      m = sf.define_c_function "#{name}_#{shadow_struct.name}", subclass
+      c_function_templates[name] = m
+      m.scope :extern
+      m.instance_eval(&block) if block
+      m
+    end
+    
     #== Internal methods ==#
 
+    def c_method_templates;           @c_method_templates ||= {};           end
+    def c_singleton_method_templates; @c_singleton_method_templates ||= {}; end
+    def c_function_templates;         @c_function_templates ||= {};         end
+    # Note that {} nondeterministic, so these should only be used to
+    # check existence or get value, not to iterate.
+    
+    def find_super_function sym
+      c_function_templates[sym] || (
+        defined?(superclass.find_super_function) &&
+          superclass.find_super_function(sym))
+    end
+    
     # Construct the name used for the shadow struct.
     def shadow_struct_name
       name.gsub(/_/, '__').gsub(/::/, '_o_') + CShadow::SHADOW_SUFFIX
@@ -582,6 +619,8 @@ module CShadow
       unless defined?(@new_method) and @new_method
         sf = shadow_library_source_file
         ssn = shadow_struct.name
+        mark_name = refer_to_function :mark
+        free_name = refer_to_function :free
         @new_method = sf.define_c_singleton_method self,
           :new, AttrClassMethod
         @new_method.instance_eval {
@@ -592,8 +631,8 @@ module CShadow
           setup :shadow_struct => %{
             object = Data_Make_Struct(self,
                        #{ssn},
-                       mark_#{ssn},
-                       free_#{ssn},
+                       #{mark_name},
+                       #{free_name},
                        shadow);
             shadow->self = object;
           }
@@ -609,18 +648,35 @@ module CShadow
       end
       @new_method
     end
-
+    
+    def referenced_functions
+      @referenced_functions ||= {}
+    end
+    
+    def refer_to_function sym
+      referenced_functions[sym] = true
+      "#{sym}_#{shadow_struct.name}"
+    end
+    
+    def check_inherited_functions
+      syms = referenced_functions.keys.sort_by{|k|k.to_s}
+      syms.reject {|sym| c_function_templates[sym]}.each do |sym|
+        fname = "#{sym}_#{shadow_struct.name}"
+        pf = find_super_function(sym)
+        shadow_library_source_file.declare fname.intern =>
+          "#define #{fname} #{pf ? pf.name : 0}"
+      end
+    end
+    
     # Return the object for managing the mark function of the class.
     def mark_function
       unless defined?(@mark_function) and @mark_function
         sf = shadow_library_source_file
         ssn = shadow_struct.name
-        @mark_function = sf.define_c_function("mark_#{ssn}", MarkFunction)
-        @mark_function.instance_eval {
-          scope :static
+        @mark_function = define_inheritable_c_function(:mark, MarkFunction) do
           arguments "#{ssn} *shadow"
           return_type "void"
-        }
+        end
         if superclass.respond_to? :shadow_struct
           @mark_function.mark superclass.mark_function.mark!
         end
@@ -633,12 +689,10 @@ module CShadow
       unless defined?(@free_function) and @free_function
         sf = shadow_library_source_file
         ssn = shadow_struct.name
-        @free_function = sf.define_c_function("free_#{ssn}", FreeFunction)
-        @free_function.instance_eval {
-          scope :static
+        @free_function = define_inheritable_c_function(:free, FreeFunction) do
           arguments "#{ssn} *shadow"
           return_type "void"
-        }
+        end
         if superclass.respond_to? :shadow_struct
           @free_function.free superclass.free_function.free!
         end
@@ -690,6 +744,8 @@ module CShadow
       unless defined?(@_alloc_method) and @_alloc_method
         sf = shadow_library_source_file
         ssn = shadow_struct.name
+        mark_name = refer_to_function :mark
+        free_name = refer_to_function :free
         @_alloc_method = sf.define_alloc_func(self)
         @_alloc_method.instance_eval {
           scope :extern
@@ -701,8 +757,8 @@ module CShadow
           body %{
             object = Data_Make_Struct(#{klass_c_name},
                        #{ssn},
-                       mark_#{ssn},
-                       free_#{ssn},
+                       #{mark_name},
+                       #{free_name},
                        shadow);
             shadow->self = object;
           }
@@ -899,7 +955,6 @@ module CShadow
     end
 
     unless base_class.ancestors.include? self
-
       base_class.class_eval {@base_class = self; @persistent = true}
       base_class.extend CShadowClassMethods
 

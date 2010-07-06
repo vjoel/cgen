@@ -1,3 +1,10 @@
+cgen 0.16.5
+
+  - api addition: define_inheritable_c_function
+  
+  - optimization: if mark and free same as parent class
+    implementation, reference the latter directly
+
 cgen 0.16.4
 
   - api addition: module and symbol declarations can optionally be sent
