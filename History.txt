@@ -4,6 +4,8 @@ cgen 0.16.5
   
   - optimization: if mark and free same as parent class
     implementation, reference the latter directly
+  
+  - optimization: preserve Makefile mtime when nothing changes
 
 cgen 0.16.4
 

@@ -949,9 +949,22 @@ class Library < Template
         need_to_make_clean = true
       end
       
+      ## it would be better to capture the output of extconf.rb before
+      ## it writes it to Makefile, but mkmf.rb is not written that way :(
+      if File.exist?("Makefile")
+        old_makefile = File.read("Makefile")
+        require 'fileutils'
+        FileUtils.mv("Makefile", "Makefile.old")
+      end
+      
       system %{
         #{ruby} extconf.rb > #{@logname}
       }
+      
+      if old_makefile and old_makefile == File.read("Makefile")
+        FileUtils.rm("Makefile")
+        FileUtils.mv("Makefile.old", "Makefile")
+      end
     end
     
     make "clean" if need_to_make_clean
