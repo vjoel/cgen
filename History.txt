@@ -6,6 +6,9 @@ cgen 0.16.5
     implementation, reference the latter directly
   
   - optimization: preserve Makefile mtime when nothing changes
+  
+  - optimization: do not generate load and dump methods when
+    super implementation is equivalent
 
 cgen 0.16.4
 

@@ -270,9 +270,11 @@ module CShadow
         classes.each do |cl|
           # make sure the following have been defined by now
           cl.shadow_struct
-          cl.new_method
+          cl.new_method; cl._alloc_method
           cl.check_inherited_functions
-          cl._dump_data_method; cl._load_data_method; cl._alloc_method
+          if cl == cl.base_class
+            cl._dump_data_method; cl._load_data_method
+          end
         end
       end
 
