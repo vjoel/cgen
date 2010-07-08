@@ -521,7 +521,6 @@ module CShadow
     def define_c_method name, subclass = CGenerator::Method, &block
       sf = shadow_library_source_file
       m = sf.define_c_method self, name, subclass
-      c_method_templates[name] = m
       m.scope :extern
       m.declare :shadow => "#{shadow_struct.name} *shadow"
       m.setup :shadow =>
@@ -535,7 +534,6 @@ module CShadow
           subclass = CGenerator::SingletonMethod, &block
       sf = shadow_library_source_file
       m = sf.define_c_singleton_method self, name, subclass
-      c_singleton_method_templates[name] = m
       m.scope :extern
       m.instance_eval(&block) if block
       m
@@ -573,8 +571,6 @@ module CShadow
     
     #== Internal methods ==#
 
-    def c_method_templates;           @c_method_templates ||= {};           end
-    def c_singleton_method_templates; @c_singleton_method_templates ||= {}; end
     def c_function_templates;         @c_function_templates ||= {};         end
     # Note that {} nondeterministic, so these should only be used to
     # check existence or get value, not to iterate.
