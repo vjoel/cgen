@@ -901,8 +901,10 @@ module CShadow
 
         new_method.attr_code attr.init if attr.init
 
-        mark_function.mark attr.mark
-        free_function.free attr.free
+        m = attr.mark
+        mark_function.mark m if m
+        f = attr.free
+        free_function.free f if f
 
         if persistent?
           if attr_persists

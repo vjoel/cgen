@@ -1,3 +1,8 @@
+cgen 0.16.6
+
+  - optimization: don't generate a mark or free function when an attribute
+    has nil mark or free code
+
 cgen 0.16.5
 
   - api addition: define_inheritable_c_function
