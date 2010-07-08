@@ -9,6 +9,9 @@ cgen 0.16.5
   
   - optimization: do not generate load and dump methods when
     super implementation is equivalent
+  
+  - optimization: if mark or free do nothing, don't generate a function,
+    just use 0 or -1 (resp.) in Data_Make_Struct
 
 cgen 0.16.4
 

@@ -665,8 +665,10 @@ module CShadow
       syms.reject {|sym| c_function_templates[sym]}.each do |sym|
         fname = "#{sym}_#{shadow_struct.name}"
         pf = find_super_function(sym)
+        pf_str = pf ? pf.name : (sym == :free ? -1 : 0)
+          # -1 means free the struct; See README.EXT
         shadow_library_source_file.declare fname.intern =>
-          "#define #{fname} #{pf ? pf.name : 0}"
+          "#define #{fname} #{pf_str}"
       end
     end
     
