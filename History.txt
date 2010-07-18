@@ -1,3 +1,7 @@
+cgen 0.16.7
+
+  - misc refactoring, cleanup, docs, error checking
+
 cgen 0.16.6
 
   - optimization: don't generate a mark or free function when an attribute

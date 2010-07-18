@@ -199,7 +199,7 @@ module CShadow
       super
       @class = @match
       
-      ssn = @class.shadow_struct.name
+      ssn = @class.shadow_struct_name
       
       @cvar = @var
       if @class < CShadow

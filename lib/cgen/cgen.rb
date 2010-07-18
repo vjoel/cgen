@@ -418,7 +418,7 @@ require 'cgen/inherit'
 # way that makes clear that the problem is really with commit.
 module CGenerator
 
-VERSION = '0.16.6'
+VERSION = '0.16.7'
 
 class Accumulator ## should be a mixin? "Cumulative"?
 
