@@ -258,6 +258,48 @@ class IntAttributeTest < AttributeTest
   end
 end
 
+class BooleanAttributeTest < AttributeTest
+  class BooleanAttributeSample < AttributeSample
+    shadow_attr_accessor :x => "boolean x"
+  end
+
+  def test__initial
+    @ias = BooleanAttributeSample.new
+    assert_equal(false, @ias.x)
+  end
+
+  def test_accessor
+    @ias = BooleanAttributeSample.new
+    @ias.x = true
+    assert_equal(true, @ias.x)
+    @ias.x = false
+    assert_equal(false, @ias.x)
+    @ias.x = nil
+    assert_equal(false, @ias.x)
+  end
+
+  def test_conversion
+    @ias = BooleanAttributeSample.new
+    @ias.x = 5
+    assert_equal(true, @ias.x)
+    @ias.x = {:foo => "bar"}
+    assert_equal(true, @ias.x)
+  end
+
+  def test_marshal
+    @ias = BooleanAttributeSample.new
+    @ias.x = true
+    s = Marshal.dump @ias
+    t = Marshal.load s
+    assert_equal(@ias.x, t.x)
+
+    @ias.x = false
+    s = Marshal.dump @ias
+    t = Marshal.load s
+    assert_equal(@ias.x, t.x)
+  end
+end
+
 class LongAttributeTest < AttributeTest
   class LongAttributeSample < AttributeSample
     shadow_attr_accessor :x => "long x"

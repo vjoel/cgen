@@ -1,6 +1,8 @@
 cgen 0.16.7
 
   - misc refactoring, cleanup, docs, error checking
+  
+  - added BooleanAttribute with tests
 
 cgen 0.16.6
 

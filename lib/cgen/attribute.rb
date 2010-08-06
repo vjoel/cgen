@@ -307,6 +307,18 @@ module CShadow
     end
   end
   
+  class BooleanAttribute < CNativeAttribute
+    @pattern = /\A(bool(?:ean)?)\s+(\w+)\z/
+    def initialize(*args)
+      super
+      @cdecl = @cdecl.sub(@match[1], "int")
+      @reader = "result = shadow->#{@cvar} ? Qtrue : Qfalse"
+      @writer = "shadow->#{@cvar} = RTEST(arg)"   # type conversion
+      @dump = "rb_ary_push(result, shadow->#{@cvar} ? Qtrue : Qfalse)"
+      @load = "tmp = rb_ary_shift(from_array); shadow->#{@cvar} = RTEST(tmp)"
+    end
+  end
+  
   # Does not check for overflow.
   class ShortAttribute < IntAttribute
     @pattern = /\A(short)\s+(\w+)\z/
