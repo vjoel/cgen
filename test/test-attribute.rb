@@ -154,7 +154,8 @@ class ShadowObjectAttributeTest < AttributeTest
     n = ObjectSpace.each_object(c) {}
     make_things c, 10
     GC.start
-    assert_equal(n+1, ObjectSpace.each_object(c) {})
+    n2 = ObjectSpace.each_object(c) {}
+    assert_send( [[n, n+1], :include?, n2] )
   end
 
   def test_marshal_uninitialized
