@@ -624,7 +624,8 @@ class Library < Template
         rb_define_method!,
         rb_define_module_function!,
         rb_define_global_function!,
-        rb_define_singleton_method!
+        rb_define_singleton_method!,
+        rb_define_alloc_func!
       ## odd, putting an accum inside
       ## a template which is not the parent
   end
@@ -1101,6 +1102,34 @@ class Library < Template
               :rb_define_module_function,
               :rb_define_global_function,
               :rb_define_singleton_method) {RbDefineAccumulator}
+
+  class RbDefineAllocAccumulator < Accumulator
+    def add spec
+      klass = spec[:class]
+      cfile = spec[:cfile]
+      
+      if @pile.find {|s| s[:class] == klass}
+        raise ArgumentError, "Duplicate alloc func definition for #{klass}"
+      end
+
+      klass_c_name =
+        spec[:class_c_name] ||= @parent.declare_class(klass, cfile) ## @parent ?
+      spec[:c_name] ||= "alloc_func_#{klass_c_name}".intern
+      @pile << spec
+      
+      spec[:c_name]
+    end
+    
+    def to_s
+      @pile.collect { |spec|
+        c_name        = spec[:c_name]
+        klass_c_name  = spec[:class_c_name]
+        "rb_define_alloc_func(#{klass_c_name}, #{c_name});"
+      }.join "\n"
+    end
+  end # class RbDefineAllocAccumulator
+  
+  accumulator(:rb_define_alloc_func) {RbDefineAllocAccumulator}
   
   # call-seq:
   #   define_c_method mod, name, subclass
@@ -1465,10 +1494,7 @@ class CFile < CFragment
   alias define_c_class_method define_c_singleton_method
   
   def define_alloc_func klass
-    klass_c_name = declare_class klass, self # cfile
-    c_name = "alloc_func_#{klass_c_name}"
-    library.init_library_function.body \
-      %{rb_define_alloc_func(#{klass_c_name}, #{c_name})}
+    c_name = rb_define_alloc_func :class => klass, :cfile => self
     define c_name, Function
   end
   

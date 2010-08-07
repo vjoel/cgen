@@ -3,6 +3,8 @@ cgen 0.16.7
   - misc refactoring, cleanup, docs, error checking
   
   - added BooleanAttribute with tests
+  
+  - improved placement of alloc funcs in library init code
 
 cgen 0.16.6
 
