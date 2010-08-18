@@ -418,7 +418,7 @@ require 'cgen/inherit'
 # way that makes clear that the problem is really with commit.
 module CGenerator
 
-VERSION = '0.16.7'
+VERSION = '0.16.8'
 
 class Accumulator ## should be a mixin? "Cumulative"?
 
@@ -597,6 +597,10 @@ class Library < Template
   # lists all .c files that are in the source dir. If you do not delete obsolete
   # files, they will be compiled into your library!
   attr_accessor :purge_source_dir
+  
+  # Array of dirs which will be searched for extra include files. Example:
+  #   lib.include_dirs << "/home/me/include"
+  attr_reader :include_dirs
 
   def initialize name
     super name
@@ -604,6 +608,7 @@ class Library < Template
     @show_times_flag = @purge_source_dir = false
     @committed = false
     @source_file = nil
+    @include_dirs = []
     
     @rtime = Time.now.to_f
     @ptime = process_times
@@ -893,7 +898,7 @@ class Library < Template
       return if Dir[cpat].all? {|f| test ?<, f, dep}
       
       cfg = Config::CONFIG
-      dirs = [cfg["sitearchdir"], cfg["archdir"], cfg["includedir"]]
+      dirs = [cfg["sitearchdir"], cfg["archdir"], cfg["includedir"], *include_dirs]
       
       case cfg["CC"]
       when /gcc/
@@ -1032,6 +1037,9 @@ class Library < Template
     a = []
     a << "require 'mkmf'"
     a << "$CFLAGS = \"#$CFLAGS\"" if defined?($CFLAGS)
+    include_dirs.each do |dir|
+      a << %{$INCFLAGS << " -I#{dir}"}
+    end
     yield a if block_given?
     a << "create_makefile '#{@name}'"
   end
