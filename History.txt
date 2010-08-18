@@ -1,3 +1,7 @@
+cgen 0.16.8
+
+  - added Library#include_dirs for setting include path
+
 cgen 0.16.7
 
   - misc refactoring, cleanup, docs, error checking
