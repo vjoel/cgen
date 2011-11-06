@@ -897,7 +897,7 @@ class Library < Template
       dep = "depend"
       return if Dir[cpat].all? {|f| test ?<, f, dep}
       
-      cfg = Config::CONFIG
+      cfg = RbConfig::CONFIG
       dirs = [cfg["sitearchdir"], cfg["archdir"], cfg["includedir"], *include_dirs]
       
       case cfg["CC"]
@@ -938,7 +938,7 @@ class Library < Template
     # the global namespace.
     build_wrapper do
       require 'rbconfig'
-      ruby = Config::CONFIG["RUBY_INSTALL_NAME"]
+      ruby = RbConfig::CONFIG["RUBY_INSTALL_NAME"]
       
       old_contents = File.read("extconf.rb") rescue nil
       contents = extconf
