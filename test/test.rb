@@ -10,7 +10,7 @@ def run(x)
 end
 
 require 'rbconfig'
-ruby = Config::CONFIG["RUBY_INSTALL_NAME"]
+ruby = RbConfig::CONFIG["RUBY_INSTALL_NAME"]
 
 run "#{ruby} test-cgen.rb"
 run "#{ruby} test-cshadow.rb"
