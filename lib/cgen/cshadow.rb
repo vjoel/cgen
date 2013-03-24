@@ -1088,35 +1088,31 @@ module CShadow
     end
   end
 
-  # Define YAML methods for CShadow classes. Can be called before
-  # or after #commit. Loads the yaml library.
-  def self.allow_yaml(your_tag = "path.berkeley.edu,2006")
-    return if defined?(@cshadow_allow_yaml) and @cshadow_allow_yaml
-    @cshadow_allow_yaml = true
-
-    require 'yaml'
-    
-    yaml_as "tag:#{your_tag}:cshadow"
-
-    def self.yaml_new( klass, tag, val )
-      subtype, subclass = YAML.read_type_class(tag, Object)
-      subclass.new_from_hash(val)
+  def each_persistent_attr # :yields: attr_name
+    psa = self.class.shadow_attrs.select {|attr| attr.persists}
+    psa.each do |attr|
+      yield attr.var.to_s
     end
+    instance_variables.each do |ivar|
+      yield ivar[1..-1]
+    end
+  end
 
-    module_eval do
-      def add_yaml_map_contents(map)
-        each_persistent_attr_value do |attr, value|
-          map.add(attr, value)
-        end
-      end
+  def encode_with coder
+    each_persistent_attr_value do |attr, value|
+      coder[attr] = value
+    end
+  end
 
-      def to_yaml( opts = {} )
-        YAML.quick_emit(object_id, opts) do |out|
-          out.map( taguri, to_yaml_style ) do |map|
-            add_yaml_map_contents(map)
-          end
-        end
-      end
+  def init_with coder
+    psa = self.class.shadow_attrs.select {|attr| attr.persists}
+    psvars = psa.map{|attr|attr.var.to_s}
+
+    from_array = psvars.map {|sv| coder[sv]}
+    _load_data(from_array)
+    
+    (coder.map.keys - psvars).each do |ivar|
+      obj.instance_variable_set("@#{ivar}", coder[ivar])
     end
   end
 end

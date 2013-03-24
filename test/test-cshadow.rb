@@ -261,29 +261,19 @@ class OtherBaseTestCase < Test::Unit::TestCase
 
 end
 
-begin
-  require 'yaml'
-  module Kernel
-    undef :y # else conflict with checking :y is undefined above
-  end
-  CShadow.allow_yaml
-rescue Exception => e
-  $stderr.puts "Could not load yaml : #{e.inspect}"
-else
+require 'yaml'
 
-  class YamlTest < Test::Unit::TestCase
+class YamlTest < Test::Unit::TestCase
 
-    def test_yaml
-      base = Base.new
-      base.obj = [1,2,3]
-      base.np = "456"
-
-      base2 = YAML.load(YAML.dump(base))
-      
-      assert_equal(base.obj, base2.obj)
-      assert_equal(nil, base2.np)
-    end
-
+  def test_yaml
+    base = Base.new
+    base.obj = [1,2,3]
+    base.np = "456"
+    base.instance_variable_set(:@ivar, "save this too")
+    base2 = YAML.load(YAML.dump(base))
+    assert_equal(base.obj, base2.obj)
+    assert_equal(nil, base2.np)
+    assert_equal("save this too", base.instance_variable_get(:@ivar))
   end
 
 end
