@@ -72,4 +72,4 @@ Ruby license.
 
 = Author
 
-Copyright 2001-2009, Joel VanderWerf, mailto:vjoel@users.sourceforge.net.
+Copyright 2001-2013, Joel VanderWerf, mailto:vjoel@users.sourceforge.net.
