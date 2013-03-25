@@ -1,4 +1,4 @@
-= Overview
+# Overview #
 
 Ruby has a C interface for defining extensions to the language. Using this interface, you define functions in C and add them as methods that are callable from ruby code. You may also define classes, modules, globals, and so on.
 
@@ -10,7 +10,7 @@ Including the CShadow module in a class lets you define the structure of the dat
 
 See the CGenerator, CShadow, and CShadow::Attribute pages for details.
 
-= Purpose and history
+# Purpose and history #
 
 The intended use of cgen is managing a complex library that may change from one run of the program to the next. The reason for the change might be that the program is written in a DSL (domain-specific language), and that the library functions are generated based on the statements of the DSL.
 
@@ -20,9 +20,9 @@ Cgen was introduced in 2001 with this post:
 
 http://blade.nagaokaut.ac.jp/cgi-bin/scat.rb/ruby/ruby-talk/24443
 
-= Getting started
+# Getting started #
 
-== Installing
+## Installing ##
 
 Cgen is available from http://rubyforge.org/projects/cgen.
 
@@ -36,7 +36,7 @@ or from tarball, by unpacking and then:
   ruby install.rb setup
   ruby install.rb install
 
-=== System Requirements
+### System Requirements ###
 
 Cgen is pure ruby, so you don't need a compiler to install it. However, you do need a C compiler to do anything useful with it.
 
@@ -48,7 +48,7 @@ On Windows, you should use a compiler that is compatible with your ruby interpre
 * MSVC 2003
 * Mingw32 (gcc; the foundation of the new OCI by Luis Lavena)
 
-= Examples
+# Examples #
 
 The cgen package comes with a substantial examples directory, but it is not yet very well organized. Here are the best ones to start with:
 
@@ -61,15 +61,15 @@ complex.rb::
 matrix.rb::
   second example of CShadow
 
-= Web site
+# Web site #
 
 http://rubyforge.org/projects/cgen
 http://cgen.rubyforge.org/
 
-= License
+# License #
 
 Ruby license.
 
-= Author
+# Author #
 
 Copyright 2001-2013, Joel VanderWerf, mailto:vjoel@users.sourceforge.net.
