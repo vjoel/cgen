@@ -1,3 +1,11 @@
+cgen 0.16.10
+
+  - fix gemspec
+
+cgen 0.16.9
+
+  - updated for ruby 2.0
+
 cgen 0.16.8
 
   - added Library#include_dirs for setting include path
