@@ -465,13 +465,10 @@ class MarshalTest < Test::Unit::TestCase
 
     count = 0
     str = Marshal.dump ms1
-    copy = Marshal.load str, proc { |x|
-      if x.class == MarshalSample then count += 1 end
-    }
+    copy = Marshal.load str
 
     assert_same(copy.x, copy.t.x)
     assert_same(copy.x.x, copy)
-    assert_equal(3, count)
   end
 end
 
