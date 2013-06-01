@@ -139,7 +139,7 @@ class CompileTimeTestCase < Test::Unit::TestCase
 end
 
 require 'fileutils'
-dir = File.join("tmp", RUBY_VERSION)
+dir = File.join(File.dirname(__FILE__), "tmp", RUBY_VERSION)
 FileUtils.mkpath dir
 Dir.chdir dir do
   EmptyBase.commit

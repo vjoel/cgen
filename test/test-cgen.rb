@@ -105,7 +105,7 @@ class LibraryTest < Test::Unit::TestCase
   @lib.after_commit  { @@ba << 4 }
 
   require 'fileutils'
-  dir = File.join("tmp", RUBY_VERSION)
+  dir = File.join(File.dirname(__FILE__), "tmp", RUBY_VERSION)
   FileUtils.mkpath dir
   Dir.chdir dir do
     @lib.commit
