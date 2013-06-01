@@ -11,6 +11,7 @@ Gem::Specification.new do |s|
   s.email = "vjoel@users.sourceforge.net"
   s.extra_rdoc_files = ["History.txt", "README.md"]
   s.files = Dir[
+    "Rakefile",
     "History.txt", "README.md",
     "lib/**/*.rb",
     "examples/*.{rb,txt}",
