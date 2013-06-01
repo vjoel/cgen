@@ -1,8 +1,8 @@
-require 'test/unit'
+require 'minitest/autorun'
 require 'cgen/cgen'
 
 
-class BasicTemplateTest < Test::Unit::TestCase
+class BasicTemplateTest < Minitest::Test
 
   class BasicTemplate < CGenerator::Template
     accumulator(:acc0, :acc1, :acc2)
@@ -30,7 +30,7 @@ class BasicTemplateTest < Test::Unit::TestCase
 end
 
 
-class CFragmentTest < Test::Unit::TestCase
+class CFragmentTest < Minitest::Test
 
   class CodeTemplate < CGenerator::CFragment
     accumulator(:decl) {StatementKeyAccumulator}
@@ -67,7 +67,7 @@ class CFragmentTest < Test::Unit::TestCase
 end
 
 
-class LibraryTest < Test::Unit::TestCase
+class LibraryTest < Minitest::Test
   class Sample
   end
 

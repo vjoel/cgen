@@ -1,4 +1,4 @@
-require 'test/unit'
+require 'minitest/autorun'
 require 'cgen/cshadow'
 
 #
@@ -89,7 +89,7 @@ end
 
 # Compile-time tests (that is, pre-commit)
 
-class CompileTimeTestCase < Test::Unit::TestCase
+class CompileTimeTestCase < Minitest::Test
   def test_conflict
     assert_raises(NameError) {
       Sub_2.class_eval {
@@ -153,7 +153,7 @@ METHOD_MISSING_ERROR =
 
 # Run-time tests (that is, post-commit)
 
-class EmptyBaseTestCase < Test::Unit::TestCase
+class EmptyBaseTestCase < Minitest::Test
 
   def test_empty_base
     ebs1 = EBSub_1.new
@@ -176,7 +176,7 @@ class EmptyBaseTestCase < Test::Unit::TestCase
 
 end
 
-class BaseTestCase < Test::Unit::TestCase
+class BaseTestCase < Minitest::Test
 
   def test_limited_access
     b = Sub_1.new
@@ -231,7 +231,11 @@ class BaseTestCase < Test::Unit::TestCase
   def test_protect
     a = Base.new
     b = Sub_4.new
-    assert_nothing_raised {a.x; a.y = 2}
+    
+    #assert_nothing_raised
+    a.x
+    a.y = 2
+    
     assert_raises(METHOD_MISSING_ERROR) {
       b.x
     }
@@ -247,7 +251,7 @@ class BaseTestCase < Test::Unit::TestCase
 
 end
 
-class OtherBaseTestCase < Test::Unit::TestCase
+class OtherBaseTestCase < Minitest::Test
 
   def test_sharing_library
     ob = OtherBase.new
@@ -263,7 +267,7 @@ end
 
 require 'yaml'
 
-class YamlTest < Test::Unit::TestCase
+class YamlTest < Minitest::Test
 
   def test_yaml
     base = Base.new

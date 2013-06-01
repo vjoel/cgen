@@ -1,4 +1,4 @@
-require 'test/unit'
+require 'minitest/autorun'
 require 'cgen/cshadow'
 
 #
@@ -11,7 +11,7 @@ class AttributeSample
   include CShadow
 end
 
-class AttributeTest < Test::Unit::TestCase
+class AttributeTest < Minitest::Test
   def default_test; end
 end
 
@@ -434,7 +434,7 @@ class MarshalSample < AttributeSample
   attr_accessor :t
 end
 
-class MarshalTest < Test::Unit::TestCase
+class MarshalTest < Minitest::Test
   def test_marshal_ivars
     ms = MarshalSample.new
     ms.x = ["a", :b]
