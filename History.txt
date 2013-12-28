@@ -1,3 +1,9 @@
+cgen 0.16.12
+
+  - update .gitignore
+  - test with ruby 2.1
+  - modernize rakefile: release tasks
+
 cgen 0.16.11
 
   - cleanup
